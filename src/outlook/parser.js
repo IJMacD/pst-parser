@@ -97,6 +97,16 @@ export class PSTFile {
             return new PSTPropertyContext(data);
         }
     }
+
+    /**
+     * @param {bigint} bid
+     */
+    getPropertyContext (bid) {
+        const data = this.getData(bid);
+        if (data) {
+            return new PSTPropertyContext(data);
+        }
+    }
 }
 
 export class PSTHeader {
@@ -625,7 +635,11 @@ export class PSTPropertyContext extends PSTBTreeOnHeap {
     static PTYPE_RULE_ACTION    = 0x00FE;
     static PTYPE_BINARY         = 0x0102;
 
+    static PID_TAG_SUBJECT              = 0x0037;
+    static PID_TAG_NORMALIZED_SUBJECT   = 0x0E1D;
     static PID_TAG_RECORD_KEY           = 0x0FF9;
+    static PID_TAG_BODY                 = 0x1000;
+    static PID_TAG_BODY_HTML            = 0x1013;
     static PID_TAG_DISPLAY_NAME         = 0x3001;
     static PID_TAG_ROOT_MAILBOX         = 0x35E0;
     static PID_TAG_DELETED_ITEMS        = 0x35E3;
@@ -692,6 +706,14 @@ export class PSTPropertyContext extends PSTBTreeOnHeap {
         if (record?.wPropType === PSTPropertyContext.PTYPE_BOOLEAN) {
             return record.dwValueHnid > 0;
         }
+    }
+
+    getAllPCRecords () {
+        const out = [];
+        for (let i = 0; i < this.pageMap.cAlloc; i++) {
+            out.push(this.getPCRecord(i));
+        }
+        return out;
     }
 }
 
