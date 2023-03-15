@@ -1,19 +1,18 @@
-import { DataBlock, PropertyContext } from "./ltp";
-import { Folder, Message, MessageStore } from "./messaging";
-import { BTPage, Page, Block, Node, BREF } from "./nbr";
-import { CryptPermute } from "./permute";
-
-export { Node, PropertyContext };
+import { PropertyContext, TableContext } from "./ltp.js";
+import { Folder, Message, MessageStore } from "./messaging.js";
+import { BTPage, Page, BlockEntry, NodeEntry, BREF, DataBlock, XBlock, InternalBlock, XXBlock, SubnodeLeafBlock, SubnodeIntermediateBlock } from "./nbr.js";
+import { CryptPermute } from "./permute.js";
+import { h } from "./util.js";
 
 export class File {
     #buffer;
-    header;
+    #header;
 
     static NID_MESSAGE_STORE    = 0x21n;
     static NID_ROOT_FOLDER      = 0x122n;
 
     get #rootNBTPage () {
-        const rootNBTPage = this.getPage(this.header.root.BREFNBT.ib);
+        const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
         if (!(rootNBTPage instanceof BTPage)) {
             throw Error("Root NBT Page was not correct page type");
         }
@@ -21,7 +20,7 @@ export class File {
     }
 
     get #rootBBTPage () {
-        const rootBBTPage = this.getPage(this.header.root.BREFBBT.ib);
+        const rootBBTPage = this.#getPage(this.#header.root.BREFBBT.ib);
         if (!(rootBBTPage instanceof BTPage)) {
             throw Error("Root BBT Page was not correct page type");
         }
@@ -33,13 +32,13 @@ export class File {
      */
     constructor (buffer) {
         this.#buffer = buffer;
-        this.header = new Header(buffer);
+        this.#header = new Header(buffer);
     }
 
     /**
-     * @param {bigint} ib
+     * @param {number|bigint} ib
      */
-    getPage (ib) {
+    #getPage (ib) {
         const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
         return Page.getPage(this.#buffer, offset);
     }
@@ -47,9 +46,9 @@ export class File {
     /**
      * @param {number|bigint} nid
      */
-    getNode (nid) {
+    #getNode (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
-        if (!(entry instanceof Node)) {
+        if (!(entry instanceof NodeEntry)) {
             throw Error("Expected NBT Entry");
         }
         return entry;
@@ -64,71 +63,178 @@ export class File {
      */
     getAllNodeKeysOfType (nidType) {
         const nodeKeys = this.#rootNBTPage.getAllKeys();
-        return nodeKeys.filter(nid => Node.getNIDType(nid) === nidType);
+        return nodeKeys.filter(nid => NodeEntry.getNIDType(nid) === nidType);
     }
 
     /**
      * @param {number} nidType
      */
-    getNodesOfType (nidType) {
-        return this.getAllNodeKeysOfType(nidType).map(nid => this.getNode(nid));
+    getAllNodesOfType (nidType) {
+        return this.getAllNodeKeysOfType(nidType).map(nid => this.#getNode(nid));
     }
 
     /**
      * @param {bigint} bid
      */
-    getDataBlock (bid) {
+    #getBlock (bid) {
         const entry = this.#rootBBTPage.findEntry(bid);
-        if (entry instanceof Block) {
-            const offset = parseInt(entry.BREF.ib.toString())
-            return new DataBlock(this.#buffer, offset, entry.cb);
+
+        if (entry instanceof BlockEntry) {
+            const offset = parseInt(entry.BREF.ib.toString());
+
+            if (BREF.isInternalBID(bid)) {
+                const b = new InternalBlock(this.#buffer, offset, entry.cb);
+
+                if (b.bType === 0x01 && b.cLevel === 1) {
+                    return new XBlock(this.#buffer, offset, entry.cb);
+                }
+                else if (b.bType === 0x01 && b.cLevel === 2) {
+                    return new XXBlock(this.#buffer, offset, entry.cb);
+                }
+                else if (b.bType === 0x02 && b.cLevel === 0) {
+                    return new SubnodeLeafBlock(this.#buffer, offset, entry.cb);
+                }
+                else if (b.bType === 0x02 && b.cLevel > 0) {
+                    return new SubnodeIntermediateBlock(this.#buffer, offset, entry.cb);
+                }
+            }
+            else {
+                return new DataBlock(this.#buffer, offset, entry.cb);
+            }
         }
     }
 
     /**
      * @param {bigint} bid
-     * @param {bigint} [bidSub]
      */
-    getData (bid, bidSub) {
-        const block = this.getDataBlock(bid);
-        if (block) {
+    #getBlockData (bid) {
+        const block = this.#getBlock(bid);
+
+        if (!block) {
+            throw Error("Cannot find bid: 0x" + h(bid));
+        }
+
+        if (block instanceof DataBlock) {
             const data = cloneArrayBuffer(block.data);
-            if (this.header.bCryptMethod === 1) {
+            if (this.#header.bCryptMethod === 1) {
                 CryptPermute(data, data.byteLength, false);
             }
             return data;
         }
+
+        if (block instanceof XBlock) {
+            const out = new Uint8Array(block.cEnt * 8192);
+
+            let offset = 0;
+            for (let i = 0; i < block.cEnt; i++) {
+                const dataBid = block.getBID(i);
+                const data = new Uint8Array(this.#getBlockData(dataBid));
+                out.set(data, offset);
+                offset += 8192;
+            }
+
+            return out.buffer;
+        }
+
+        if (block instanceof SubnodeIntermediateBlock) {
+            throw Error("Unimplemented: SubnodeIntermediateBlock");
+        }
+
+        if (block instanceof SubnodeLeafBlock) {
+            console.warn("Only getting first internal-NID in SLBlock");
+
+            const entry = block.getEntry(0);
+
+            return this.#getBlockData(entry.bidData);
+        }
+
+        throw Error("Unimplemented: Get data for block type 0x" + h(block.bType));
+    }
+
+    /**
+     * @param {number | bigint} nid
+     */
+    #getNodeData (nid) {
+        const entry = this.#rootNBTPage.findEntry(nid);
+
+        if (!(entry instanceof NodeEntry)) {
+            throw Error("Expected NBT Entry");
+        }
+
+        return this.#getBlockData(entry.bidData);
+    }
+
+    /**
+     * @param {number | bigint} nid
+     */
+    #getNodeSubData (nid) {
+        const entry = this.#rootNBTPage.findEntry(nid);
+
+        if (!(entry instanceof NodeEntry)) {
+            throw Error("Expected NBT Entry");
+        }
+
+        if (entry.bidSub === 0n) {
+            return null;
+        }
+
+        return this.#getBlockData(entry.bidSub);
     }
 
     /**
      * @param {bigint} bid
      */
-    getPropertyContext (bid) {
-        const data = this.getData(bid);
+    #getPropertyContext (bid) {
+        const data = this.#getBlockData(bid);
         if (data) {
             return new PropertyContext(data);
         }
     }
 
     getMessageStore () {
-        const entry = this.#rootNBTPage.findEntry(File.NID_MESSAGE_STORE);
-        if (!(entry instanceof Node)) {
-            throw Error("Expected NBT Entry");
-        }
-        const data = this.getData(entry.bidData, entry.bidSub);
+        const data = this.#getNodeData(File.NID_MESSAGE_STORE);
         if (data) {
             return new MessageStore(new PropertyContext(data));
         }
     }
 
     getRootFolder () {
-        const entry = this.#rootNBTPage.findEntry(File.NID_ROOT_FOLDER);
-        if (!(entry instanceof Node)) {
-            throw Error("Expected NBT Entry");
-        }
-        const data = this.getData(entry.bidData, entry.bidSub);
-        if (data) {
-            return new Folder(new PropertyContext(data));
+        return this.getFolder(File.NID_ROOT_FOLDER);
+    }
+
+    /**
+     * @param {number | bigint} nid
+     */
+    getFolder (nid) {
+        const pcData = this.#getNodeData(nid);
+
+        const hierarchyNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_HIERARCHY_TABLE);
+        const contentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_CONTENTS_TABLE);
+        const assocContentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE);
+
+        // console.log(`Folder NID (PC): ${nid.toString(16)} hierarchy: ${hierarchyNid.toString(16)} contents: ${contentsNid.toString(16)} assocContents: ${assocContentsNid.toString(16)}`);
+
+        const hierarchyData = this.#getNodeData(hierarchyNid);
+        const hierarchySubData = this.#getNodeSubData(hierarchyNid);
+
+        const contentsData = this.#getNodeData(contentsNid);
+        const contentsSubData = this.#getNodeSubData(contentsNid);
+
+        const assocContentsData = this.#getNodeData(assocContentsNid);
+        const assocContentsSubData = this.#getNodeSubData(assocContentsNid);
+
+        if (pcData && hierarchyData && contentsData && assocContentsData) {
+
+            const hTC = new TableContext(hierarchyData, hierarchySubData);
+            const cTC = new TableContext(contentsData, contentsSubData);
+            const aTC = new TableContext(assocContentsData, assocContentsSubData);
+
+            return new Folder(
+                new PropertyContext(pcData),
+                hTC,
+                cTC,
+                aTC
+            );
         }
     }
 
@@ -136,10 +242,10 @@ export class File {
      * @param {number|bigint} nid
      */
     getMessage (nid) {
-        if (Node.getNIDType(nid) === Node.NID_TYPE_NORMAL_MESSAGE) {
-            const node = this.getNode(nid);
+        if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
+            const node = this.#getNode(nid);
 
-            const pc = this.getPropertyContext(node.bidData);
+            const pc = this.#getPropertyContext(node.bidData);
             if (pc) {
                 return new Message(node, pc)
             }
