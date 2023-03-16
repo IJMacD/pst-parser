@@ -4,12 +4,14 @@ import { BTPage, Page, BlockEntry, NodeEntry, BREF, DataBlock, XBlock, InternalB
 import { CryptPermute } from "./permute.js";
 import { h } from "./util.js";
 
-export class File {
+export { Folder, Message, MessageStore };
+
+export class PSTFile {
     #buffer;
     #header;
 
-    static NID_MESSAGE_STORE    = 0x21n;
-    static NID_ROOT_FOLDER      = 0x122n;
+    static NID_MESSAGE_STORE    = 0x21;
+    static NID_ROOT_FOLDER      = 0x122;
 
     get #rootNBTPage () {
         const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
@@ -106,6 +108,7 @@ export class File {
 
     /**
      * @param {bigint} bid
+     * @returns {ArrayBuffer}
      */
     #getBlockData (bid) {
         const block = this.#getBlock(bid);
@@ -141,11 +144,7 @@ export class File {
         }
 
         if (block instanceof SubnodeLeafBlock) {
-            console.warn("Only getting first internal-NID in SLBlock");
-
-            const entry = block.getEntry(0);
-
-            return this.#getBlockData(entry.bidData);
+            throw Error("You must use getNodeSubDataAccessor() to get Subnode data");
         }
 
         throw Error("Unimplemented: Get data for block type 0x" + h(block.bType));
@@ -157,6 +156,10 @@ export class File {
     #getNodeData (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
 
+        if (!entry) {
+            throw Error(`Node with NID: 0x${h(nid)} not found`);
+        }
+
         if (!(entry instanceof NodeEntry)) {
             throw Error("Expected NBT Entry");
         }
@@ -167,87 +170,103 @@ export class File {
     /**
      * @param {number | bigint} nid
      */
-    #getNodeSubData (nid) {
+    #getNodeSubDataAccessor (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
 
         if (!(entry instanceof NodeEntry)) {
             throw Error("Expected NBT Entry");
         }
 
-        if (entry.bidSub === 0n) {
-            return null;
-        }
+        return (/** @type {number} */ internalNid) => {
 
-        return this.#getBlockData(entry.bidSub);
+            if (entry.bidSub === 0n) {
+                return new ArrayBuffer(0);
+            }
+
+            const block = this.#getBlock(entry.bidSub);
+
+            if (!block) {
+                throw Error("Unable to find block with bid " + entry.bidSub);
+            }
+
+            if (!(block instanceof SubnodeLeafBlock)) {
+                throw Error("Expected SubnodeLeafBlock");
+            }
+
+            for (let i = 0; i < block.cEnt; i++) {
+                const e = block.getEntry(i);
+                const nid = parseInt((e.nid & 0xFFFFFFFFn).toString());
+                if (nid === internalNid) {
+                    return this.#getBlockData(e.bidData);
+                }
+            }
+
+            throw Error(`SubnodeLeafBlock does not contain internal nid ${internalNid}`);
+        }
     }
 
     /**
-     * @param {bigint} bid
+     * @param {number} nid
      */
-    #getPropertyContext (bid) {
-        const data = this.#getBlockData(bid);
+    #getPropertyContext (nid) {
+        const data = this.#getNodeData(nid);
+        const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+
         if (data) {
-            return new PropertyContext(data);
+            return new PropertyContext(data, subDataAccessor);
         }
     }
 
+    #getTableContext (nid) {
+        const data = this.#getNodeData(nid);
+        const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+
+        return new TableContext(data, subDataAccessor);
+    }
+
     getMessageStore () {
-        const data = this.#getNodeData(File.NID_MESSAGE_STORE);
-        if (data) {
-            return new MessageStore(new PropertyContext(data));
+        const pc = this.#getPropertyContext(PSTFile.NID_MESSAGE_STORE);
+        if (pc) {
+            return new MessageStore(this, pc);
         }
     }
 
     getRootFolder () {
-        return this.getFolder(File.NID_ROOT_FOLDER);
+        return this.getFolder(PSTFile.NID_ROOT_FOLDER);
     }
 
     /**
-     * @param {number | bigint} nid
+     * @param {number} nid
      */
     getFolder (nid) {
-        const pcData = this.#getNodeData(nid);
-
         const hierarchyNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_HIERARCHY_TABLE);
         const contentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_CONTENTS_TABLE);
         const assocContentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE);
 
-        // console.log(`Folder NID (PC): ${nid.toString(16)} hierarchy: ${hierarchyNid.toString(16)} contents: ${contentsNid.toString(16)} assocContents: ${assocContentsNid.toString(16)}`);
+        const pc = this.#getPropertyContext(nid);
 
-        const hierarchyData = this.#getNodeData(hierarchyNid);
-        const hierarchySubData = this.#getNodeSubData(hierarchyNid);
+        const hTc = this.#getTableContext(hierarchyNid);
 
-        const contentsData = this.#getNodeData(contentsNid);
-        const contentsSubData = this.#getNodeSubData(contentsNid);
+        const cTc = this.#getTableContext(contentsNid);
 
-        const assocContentsData = this.#getNodeData(assocContentsNid);
-        const assocContentsSubData = this.#getNodeSubData(assocContentsNid);
+        const aTc = this.#getTableContext(assocContentsNid);
 
-        if (pcData && hierarchyData && contentsData && assocContentsData) {
 
-            const hTC = new TableContext(hierarchyData, hierarchySubData);
-            const cTC = new TableContext(contentsData, contentsSubData);
-            const aTC = new TableContext(assocContentsData, assocContentsSubData);
-
-            return new Folder(
-                new PropertyContext(pcData),
-                hTC,
-                cTC,
-                aTC
-            );
+        if (pc && hTc && cTc && aTc) {
+            return new Folder(this, nid, pc, hTc, cTc, aTc);
         }
+
+        return null;
     }
 
     /**
-     * @param {number|bigint} nid
+     * @param {number} nid
      */
     getMessage (nid) {
         if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
-            const node = this.#getNode(nid);
-
-            const pc = this.#getPropertyContext(node.bidData);
+            const pc = this.#getPropertyContext(nid);
             if (pc) {
-                return new Message(node, pc)
+                return new Message(this, nid, pc)
             }
         }
     }

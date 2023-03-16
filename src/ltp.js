@@ -1,4 +1,6 @@
+import { PSTFile } from './index.js';
 import { NodeEntry } from './nbr.js';
+import { h } from './util.js';
 
 export class HeapNode {
 
@@ -26,8 +28,15 @@ export class HeapNode {
      */
     #getPageMap (blockIndex) {
         const blockOffset = 8192 * blockIndex;
-        const ibHnpm = this.#dv.getUint16(blockOffset, true);
-        return new HeapNodePageMap(this.#dv.buffer, blockOffset + ibHnpm);
+        try {
+            const ibHnpm = this.#dv.getUint16(blockOffset, true);
+            return new HeapNodePageMap(this.#dv.buffer, blockOffset + ibHnpm);
+        } catch (e) {
+            if (e instanceof RangeError) {
+                console.error(`HeapNode: Trying to get pageMap for block index ${blockIndex}. It should be at offset 0x${h(blockOffset)} but the buffer is only 0x${h(this.#dv.byteLength)} long.`);
+            }
+            throw e;
+        }
     }
 
     /**
@@ -244,6 +253,8 @@ export class BTreeOnHeap extends HeapNode {
 }
 
 export class PropertyContext extends BTreeOnHeap {
+    #subNodeAccessor;
+
     static PTYPE_UNSPECIFIED    = 0x0000;
     static PTYPE_NULL           = 0x0001;
     static PTYPE_INTEGER16      = 0x0002;
@@ -263,6 +274,9 @@ export class PropertyContext extends BTreeOnHeap {
     static PTYPE_RESTRICTION    = 0x00FD;
     static PTYPE_RULE_ACTION    = 0x00FE;
     static PTYPE_BINARY         = 0x0102;
+
+    static PTYPE_MULTIPLE_INTEGER32 = 0x1003;
+    static PTYPE_MULTIPLE_STRING    = 0x101F;
 
     // 0x0001 – 0x0bff Message envelope properties
     static PID_TAG_IMPORTANCE                           = 0x0017;
@@ -427,8 +441,15 @@ export class PropertyContext extends BTreeOnHeap {
     static PID_TAG_NAMED_3                  = 0x8002;
     static PID_TAG_NAMED_4                  = 0x8003;
 
-    constructor (buffer) {
+    /**
+     * @param {ArrayBuffer} buffer
+     * @param {(nid: number) => ArrayBuffer} subNodeAccessor
+     *
+     */
+    constructor (buffer, subNodeAccessor) {
         super(buffer);
+
+        this.#subNodeAccessor = subNodeAccessor;
 
         if (this.bClientSig !== HeapNode.TYPE_PROPERTY_CONTEXT) {
             throw Error("HeapNode is not a PropertyContext. bClientSig: " + this.bClientSig.toString(16));
@@ -472,16 +493,26 @@ export class PropertyContext extends BTreeOnHeap {
 
         if (record.wPropType === PropertyContext.PTYPE_STRING) {
             if (record.dwValueHnid === 0) return "";
-            if (NodeEntry.getNIDType(record.dwValueHnid) === NodeEntry.NID_TYPE_HID) {
-                const data = this.getItemByHID(record.dwValueHnid);
-                return String.fromCharCode(...new Uint16Array(data));
-            }
+
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+
+            return String.fromCharCode(...new Uint16Array(data));
         }
 
         if (record.wPropType === PropertyContext.PTYPE_BINARY) {
-            if (NodeEntry.getNIDType(record.dwValueHnid) === NodeEntry.NID_TYPE_HID) {
-                return this.getItemByHID(record.dwValueHnid);
-            }
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            return (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+        }
+
+        if (record.wPropType === PropertyContext.PTYPE_INTEGER16) {
+            return record.dwValueHnid;
         }
 
         if (record.wPropType === PropertyContext.PTYPE_INTEGER32) {
@@ -504,6 +535,58 @@ export class PropertyContext extends BTreeOnHeap {
             return new Date(parseInt(timestamp.toString()));
         }
 
+        if (record.wPropType === PropertyContext.PTYPE_GUID) {
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+
+            const dv = new DataView(data);
+
+            const d1 = dv.getUint32(0, true).toString(16).padStart(8, "0");
+            const d2 = dv.getUint16(4, true).toString(16).padStart(4, "0");
+            const d3 = dv.getUint16(6, true).toString(16).padStart(4, "0");
+            const d4 = dv.getUint16(8, false).toString(16).padStart(4, "0");
+            const d5a = dv.getUint32(10, false).toString(16).padStart(8, "0");
+            const d5b = dv.getUint16(14, false).toString(16).padStart(4, "0");
+
+            return `{${d1}-${d2}-${d3}-${d4}-${d5a}${d5b}}`;
+        }
+
+        if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_STRING) {
+            if (record.dwValueHnid === 0) return [];
+
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+
+            const dv = new DataView(data);
+            const count = dv.getUint32(0, true);
+            const out = [];
+            for (let i = 0; i < count; i++) {
+                const start = dv.getUint32((i + 1) * 4, true);
+                const end = dv.getUint32((i + 2) * 4, true);
+                out.push(String.fromCharCode(...new Uint16Array(data.slice(start, end))));
+            }
+            return out;
+        }
+
+        if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_INTEGER32) {
+            if (record.dwValueHnid === 0) return [];
+
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+
+            return [...new Uint32Array(data)];
+        }
+
+        console.debug(`Unable to get data of type 0x${h(record.wPropType)}`);
     }
 
     getAllProperties () {
@@ -520,7 +603,7 @@ export class PropertyContext extends BTreeOnHeap {
 }
 
 export class TableContext extends HeapNode {
-    #subData;
+    #subDataAccessor;
     #info;
     #rowIndex;
 
@@ -532,16 +615,16 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {ArrayBuffer} data
-     * @param {ArrayBuffer?} [subData]
+     * @param {(nid: number) => ArrayBuffer} subDataAccessor
      */
-    constructor (data, subData) {
+    constructor (data, subDataAccessor) {
         super(data);
 
         if (this.bClientSig !== HeapNode.TYPE_TABLE_CONTEXT) {
             throw Error("HeapNode is not a TableContext. bClientSig: " + this.bClientSig.toString(16));
         }
 
-        this.#subData = subData;
+        this.#subDataAccessor = subDataAccessor;
 
         this.#info = new TableContextInfo(this.getItemByHID(this.hidUserRoot));
 
@@ -549,18 +632,30 @@ export class TableContext extends HeapNode {
     }
 
     /**
-     * @param {number} rowIndex
+     * @param {number} N
      */
-    getRowData (rowIndex) {
-        if (rowIndex > this.recordCount - 1) {
-            throw Error("Trying to get row index " + rowIndex + " (count: " + this.recordCount + ")");
+    getRowData (N) {
+        if (N > this.recordCount - 1) {
+            throw Error("Trying to get row index " + N + " (count: " + this.recordCount + ")");
         }
+
+        const SIZE_OF_BLOCK = 8192;
+        const SIZE_OF_BLOCKTRAILER = 16;
+        const rowsPerBlock = Math.floor((SIZE_OF_BLOCK - SIZE_OF_BLOCKTRAILER) / this.#info.rgib.TCI_bm);
+
+        const blockIndex = Math.floor(N / rowsPerBlock);
+        const rowIndex = N % rowsPerBlock;
 
         const nidType = NodeEntry.getNIDType(this.#info.hnidRows);
 
+        if (nidType === NodeEntry.NID_TYPE_LTP && this.#info.hnidRows > 0x3F) {
+            throw Error(`Failure to get data from SubNode (Not first entry). Internal NID: 0x${h(this.#info.hnidRows)}`)
+        }
+
         const rowMatrix =
             (nidType === NodeEntry.NID_TYPE_HID) ?
-                this.getItemByHID(this.#info.hnidRows) : this.#subData;
+                this.getItemByHID(this.#info.hnidRows) :
+                this.#subDataAccessor(this.#info.hnidRows);
 
         if (!rowMatrix) {
             throw Error("Unable to locate RowMatrix");
@@ -571,7 +666,7 @@ export class TableContext extends HeapNode {
         }
 
         const rowWidth = this.#info.rowWidth;
-        const start = rowIndex * rowWidth;
+        const start = SIZE_OF_BLOCK * blockIndex + rowIndex * rowWidth;
 
         if (start > rowMatrix.byteLength || rowWidth === 0) {
             throw Error("About to create a null buffer slice");
@@ -586,7 +681,7 @@ export class TableContext extends HeapNode {
      */
     doesCellExist (rowIndex, iBit) {
         const cebStart = this.#info.rgib.TCI_1b;
-        const cebEnd = this.#info.rgib.TCI_cb;
+        const cebEnd = this.#info.rgib.TCI_bm;
 
         const rgCEB = new Uint8Array(this.getRowData(rowIndex).slice(cebStart, cebEnd));
 
@@ -657,48 +752,59 @@ export class TableContext extends HeapNode {
 
         const cellData = this.#getCellDataByColDesc(rowIndex, columnDesc);
 
-        if (columnDesc.dataType === PropertyContext.PTYPE_STRING) {
-            if (cellData === 0) return "";
-            if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
-                const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
-                const data = this.getItemByHID(hid);
-                return String.fromCharCode(...new Uint16Array(data));
+        try {
+
+            if (columnDesc.dataType === PropertyContext.PTYPE_STRING) {
+                if (cellData === 0) return "";
+                if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
+                    const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
+                    const data = this.getItemByHID(hid);
+                    return String.fromCharCode(...new Uint16Array(data));
+                }
             }
-        }
 
-        if (columnDesc.dataType === PropertyContext.PTYPE_BINARY) {
-            if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
-                const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
-                return this.getItemByHID(hid);
+            if (columnDesc.dataType === PropertyContext.PTYPE_BINARY) {
+                const nidType = NodeEntry.getNIDType(cellData);
+                if (nidType === NodeEntry.NID_TYPE_HID) {
+                    const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
+                    return this.getItemByHID(hid);
+                }
+                else {
+                    throw Error("Unimplemented: Getting binary data from nidType: 0x" + h(nidType));
+                }
             }
-        }
 
-        if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER16) {
-            return cellData;
-        }
-
-        if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER32) {
-            return cellData;
-        }
-
-        if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER64) {
-            return cellData;
-        }
-
-        if (columnDesc.dataType === PropertyContext.PTYPE_BOOLEAN) {
-            return cellData > 0;
-        }
-
-        if (columnDesc.dataType === PropertyContext.PTYPE_TIME) {
-            if (typeof cellData !== "bigint") {
-                throw Error("Expected bigint for time");
+            if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER16) {
+                return cellData;
             }
-            const UNIX_TIME_START = 0x019DB1DED53E8000n; //January 1, 1970 (start of Unix epoch) in "ticks"
-            const TICKS_PER_MILLISECOND = 10000n; // a tick is 100ns
-            const timestamp = (cellData - UNIX_TIME_START) / TICKS_PER_MILLISECOND;
-            return new Date(parseInt(timestamp.toString()));
-        }
 
+            if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER32) {
+                return cellData;
+            }
+
+            if (columnDesc.dataType === PropertyContext.PTYPE_INTEGER64) {
+                return cellData;
+            }
+
+            if (columnDesc.dataType === PropertyContext.PTYPE_BOOLEAN) {
+                return cellData > 0;
+            }
+
+            if (columnDesc.dataType === PropertyContext.PTYPE_TIME) {
+                if (typeof cellData !== "bigint") {
+                    throw Error("Expected bigint for time");
+                }
+                const UNIX_TIME_START = 0x019DB1DED53E8000n; //January 1, 1970 (start of Unix epoch) in "ticks"
+                const TICKS_PER_MILLISECOND = 10000n; // a tick is 100ns
+                const timestamp = (cellData - UNIX_TIME_START) / TICKS_PER_MILLISECOND;
+                return new Date(parseInt(timestamp.toString()));
+            }
+
+            console.debug(`Unable to get data of type 0x${h(columnDesc.dataType)}`);
+        } catch (e) {
+            console.log(e);
+            console.error(`Unable to get data for rowIndex: ${rowIndex} tag: 0x${h(columnTag)} cellData: 0x${h(cellData)} dataType: 0x${h(columnDesc.dataType)}`);
+        }
     }
 
     /**
@@ -721,7 +827,7 @@ export class TableContextInfo {
             TCI_4b: this.#dv.getUint16(2, true),
             TCI_2b: this.#dv.getUint16(4, true),
             TCI_1b: this.#dv.getUint16(6, true),
-            TCI_cb: this.#dv.getUint16(8, true),
+            TCI_bm: this.#dv.getUint16(8, true),
         }
     }
     get hidRowIndex () { return this.#dv.getUint32(10, true); }
@@ -730,7 +836,7 @@ export class TableContextInfo {
 
     get colDescriptions () { return this.#tcoldesc; }
 
-    get rowWidth () { return this.rgib.TCI_cb; }
+    get rowWidth () { return this.rgib.TCI_bm; }
 
     /**
      * @param {ArrayBuffer} buffer
@@ -764,20 +870,26 @@ export class TableContextColDesc {
 
     get iBit () { return this.#dv.getUint8(7); }
 
+    /**
+     * @param {ArrayBuffer} buffer
+     */
     constructor (buffer) {
         this.#dv = new DataView(buffer);
     }
 }
 
-function parseHid(hid) {
+/**
+ * @param {number} hid
+ */
+function parseHid (hid) {
     const hidType = (hid & 0x1f);
 
     if (hidType !== NodeEntry.NID_TYPE_HID) {
-        throw Error("hid was not a HID (maybe a NID) Type: 0x" + hidType.toString(16).padStart(2, "0"));
+        throw Error("hid was not a HID (maybe a NID) Type: 0x" + h(hidType));
     }
 
-    const hidIndex = ((hid >> 5) & 0x7ff);
-    const hidBlockIndex = (hid >> 16);
+    const hidIndex = ((hid >>> 5) & 0x7ff);
+    const hidBlockIndex = (hid >>> 16);
     return { hidType, hidIndex, hidBlockIndex };
 }
 
@@ -923,5 +1035,5 @@ const tagDebug = {
     [PropertyContext.PID_TAG_NAMED_1]:                  "named1",
     [PropertyContext.PID_TAG_NAMED_2]:                  "named2",
     [PropertyContext.PID_TAG_NAMED_3]:                  "named3",
-    [PropertyContext.PID_TAG_NAMED_4]:              "   named4",
+    [PropertyContext.PID_TAG_NAMED_4]:                  "named4",
 }
