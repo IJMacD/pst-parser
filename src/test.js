@@ -9,7 +9,7 @@ if (process.argv.length < 3) {
 const byteBuffer = fs.readFileSync(process.argv[2]);
 
 try {
-    const pst = new PST.File(byteBuffer.buffer);
+    const pst = new PST.PSTFile(byteBuffer.buffer);
 
     // console.log("Root Folder NID: " + PSTFile.NID_ROOT_FOLDER);
 
@@ -41,8 +41,8 @@ catch (e) {
 }
 
 /**
- * @param {PST.File} pst
- * @param {number|bigint} nid
+ * @param {PST.PSTFile} pst
+ * @param {number} nid
  * @param {number} [depth]
  */
 function printFolder (pst, nid, depth = 0) {
@@ -51,13 +51,13 @@ function printFolder (pst, nid, depth = 0) {
         console.log(" ".repeat(depth) + folder.displayName + " (" + folder.contentCount + ")");
         // console.log(folder.getAllProperties());
 
-        const subfolders = folder.getSubFolders();
+        const subfolders = folder.getSubFolderEntries();
         for (const sf of subfolders) {
             printFolder(pst, sf.nid, depth + 1);
         }
 
         if (folder.displayName === "Sent Items") {
-            const msgs = folder.getMessages().slice(0,1);
+            const msgs = folder.getContents(0, 1);
             console.log(" ".repeat(depth) + "+ Messages: ", msgs);
 
             if (msgs.length > 0) {
