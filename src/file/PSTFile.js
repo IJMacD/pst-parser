@@ -123,9 +123,10 @@ export class PSTFile {
 
     /**
      * @param {bigint} bid
+     * @param {DataView} [target]
      * @returns {ArrayBuffer}
      */
-    #getBlockData (bid) {
+    #getBlockData (bid, target) {
         const block = this.#getBlock(bid);
 
         if (!block) {
@@ -133,25 +134,48 @@ export class PSTFile {
         }
 
         if (block instanceof DataBlock) {
-            const data = cloneArrayBuffer(block.data);
+
             if (this.#header.bCryptMethod === 1) {
-                CryptPermute(data, data.byteLength, false);
+                const data = block.data;
+
+                if (target instanceof DataView) {
+                    // If we were given a dataView then we don't need to create
+                    // a new ArrayBuffer. We can permute directly into the
+                    // dataView our caller wants.
+
+                    CryptPermute(new DataView(data), data.byteLength, false, target);
+
+                    return target.buffer;
+                }
+
+                // Caller just wants a fresh ArrayBuffer
+                const out = new ArrayBuffer(data.byteLength);
+                CryptPermute(new DataView(data), data.byteLength, false, new DataView(out));
+                return out;
             }
-            return data;
+
+            // No permutation required
+
+            if (target instanceof DataView) {
+                // If we were given a dataView we need to copy from the block
+                // into the dataView our caller wants.
+                const source = new Uint8Array(block.data);
+                const dest = new Uint8Array(target.buffer, target.byteOffset, target.byteLength);
+                dest.set(source);
+            }
+
+            return block.data;
         }
 
         if (block instanceof XBlock) {
-            const out = new Uint8Array(block.cEnt * 8192);
+            const out = new ArrayBuffer(block.cEnt * 8192);
 
-            let offset = 0;
             for (let i = 0; i < block.cEnt; i++) {
                 const dataBid = block.getBID(i);
-                const data = new Uint8Array(this.#getBlockData(dataBid));
-                out.set(data, offset);
-                offset += 8192;
+                this.#getBlockData(dataBid, new DataView(out, i * 8192, 8192));
             }
 
-            return out.buffer;
+            return out;
         }
 
         if (block instanceof SubnodeIntermediateBlock) {

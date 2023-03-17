@@ -102,33 +102,19 @@ const mpbbR = mpbbCrypt;
 const mpbbS = mpbbCrypt.slice(256);
 const mpbbI = mpbbCrypt.slice(512);
 
-const sizeof_DWORD = 4;
-
 /**
- * @param {ArrayBuffer} pv          Input data
+ * @param {DataView} pv          Input data
  * @param {number}      cb          Input size in bytes
  * @param {boolean}     fEncrypt    Is input encoded? FALSE = encoded; TRUE = PLAIN; - NOTE OPPOSITE OF DOCUMENTATION
+ * @param {DataView} [out]       Output data, can be same as pv to permute in place
  */
-export function  CryptPermute(pv, cb, fEncrypt) {
- let pb = 0;
+export function  CryptPermute(pv, cb, fEncrypt, out=pv) {
  let pbTable = fEncrypt ? mpbbR : mpbbI;
- let pdw = 0;
- let dwCurr;
- let b;
 
- const _pv = new DataView(pv);
-
- if (cb >= sizeof_DWORD)
- {
-    pdw = pb;
-    for (; cb > 0; cb--)
+    for (let i = 0; i < cb; i++)
     {
-        dwCurr = _pv.getUint8(pdw);
+        const b = pv.getUint8(i);
 
-        b = (dwCurr & 0xFF);
-        _pv.setUint8(pb, pbTable[b]);
-        pb++;
-        pdw++;
+        out.setUint8(i, pbTable[b]);
     }
- }
 }
