@@ -1,4 +1,4 @@
-import * as PST from "./index.js";
+import * as PST from "./src/index.js";
 import fs from "fs";
 
 if (process.argv.length < 3) {
