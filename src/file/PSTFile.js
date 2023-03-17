@@ -26,24 +26,11 @@ export class PSTFile {
     #buffer;
     #header;
 
+    #rootNBTPage;
+    #rootBBTPage;
+
     static NID_MESSAGE_STORE    = 0x21;
     static NID_ROOT_FOLDER      = 0x122;
-
-    get #rootNBTPage () {
-        const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
-        if (!(rootNBTPage instanceof BTPage)) {
-            throw Error("Root NBT Page was not correct page type");
-        }
-        return rootNBTPage;
-    }
-
-    get #rootBBTPage () {
-        const rootBBTPage = this.#getPage(this.#header.root.BREFBBT.ib);
-        if (!(rootBBTPage instanceof BTPage)) {
-            throw Error("Root BBT Page was not correct page type");
-        }
-        return rootBBTPage;
-    }
 
     /**
      * @param {ArrayBuffer} buffer
@@ -51,6 +38,18 @@ export class PSTFile {
     constructor (buffer) {
         this.#buffer = buffer;
         this.#header = new Header(buffer);
+
+        const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
+        if (!(rootNBTPage instanceof BTPage)) {
+            throw Error("Root NBT Page was not correct page type");
+        }
+        this.#rootNBTPage = rootNBTPage;
+
+        const rootBBTPage = this.#getPage(this.#header.root.BREFBBT.ib);
+        if (!(rootBBTPage instanceof BTPage)) {
+            throw Error("Root BBT Page was not correct page type");
+        }
+        this.#rootBBTPage = rootBBTPage;
     }
 
     /**
