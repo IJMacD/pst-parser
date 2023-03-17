@@ -81,8 +81,7 @@ are not implemented.
 Fortunately it shouldn't. The library is read only, so unless something goes
 catastrophically wrong your data should be safe.
 
-### Can you give me a brief, very high level view of the layout, contents, and
-### organisation of a PST file?
+### Can you give me a brief, very high level view of the layout, contents, structure and organisation of a PST file?
 
 Sure, here you go.
 
