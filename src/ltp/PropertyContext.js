@@ -194,7 +194,7 @@ export class PropertyContext extends BTreeOnHeap {
 
     /**
      * @param {DataView} buffer
-     * @param {(nid: number) => DataView} subNodeAccessor
+     * @param {(nid: number) => Promise<DataView>} subNodeAccessor
      *
      */
     constructor (buffer, subNodeAccessor) {
@@ -235,7 +235,7 @@ export class PropertyContext extends BTreeOnHeap {
     /**
      * @param {number} key
      */
-    getValueByKey (key) {
+    async getValueByKey (key) {
         const record = this.#getPCRecordByKey(key);
 
         if (!record) return;
@@ -247,7 +247,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const data = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                await this.#subNodeAccessor(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = data;
 
@@ -291,7 +291,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                await this.#subNodeAccessor(record.dwValueHnid);
 
             const d1 = dv.getUint32(0, true).toString(16).padStart(8, "0");
             const d2 = dv.getUint16(4, true).toString(16).padStart(4, "0");
@@ -310,7 +310,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                await this.#subNodeAccessor(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = dv;
 
@@ -332,7 +332,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const data = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                await this.#subNodeAccessor(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = data;
 
@@ -350,7 +350,7 @@ export class PropertyContext extends BTreeOnHeap {
 
     getAllProperties () {
         const keys = /** @type {number[]} */(this.keys);
-        return keys.map(key => ({ tag: key, tagHex: "0x"+key.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(key), value: this.getValueByKey(key) }));
+        return Promise.all(keys.map(key => this.getValueByKey(key).then(value => ({ tag: key, tagHex: "0x"+key.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(key), value }))));
     }
 
     /**

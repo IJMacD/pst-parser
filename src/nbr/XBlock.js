@@ -4,13 +4,13 @@ export class XBlock extends InternalBlock {
     #dv;
 
     /**
-     * @param {DataView} dv
+     * @param {ArrayBuffer} buffer
      * @param {number} dataSize
      */
-    constructor (dv, dataSize) {
-        super(dv, dataSize);
+    constructor (buffer, dataSize) {
+        super(buffer, dataSize);
 
-        this.#dv = dv;
+        this.#dv = new DataView(buffer);
     }
 
     /**

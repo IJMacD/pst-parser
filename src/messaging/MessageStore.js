@@ -7,34 +7,37 @@ export class MessageStore {
 
     get recordKey () { return this.#pc.getValueByKey(PropertyContext.PID_TAG_RECORD_KEY); }
 
-    get displayName () { return /** @type {string} */ (this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
+    get displayName () { return /** @type {Promise<string>} */ (this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
 
-    get rootFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_ROOT_MAILBOX);
-        if (data instanceof DataView) {
-            const entryID = new EntryID(data);
-            return entryID.nid;
-        }
+    get #rootFolderNID () {
+        return this.#pc.getValueByKey(PropertyContext.PID_TAG_ROOT_MAILBOX).then(data => {
+            if (data instanceof DataView) {
+                const entryID = new EntryID(data);
+                return entryID.nid;
+            }
+        });
     }
 
-    get deletedFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_DELETED_ITEMS);
-        if (data instanceof DataView) {
-            const entryID = new EntryID(data);
-            return entryID.nid;
-        }
+    get #deletedFolderNID () {
+        return this.#pc.getValueByKey(PropertyContext.PID_TAG_DELETED_ITEMS).then(data => {
+            if (data instanceof DataView) {
+                const entryID = new EntryID(data);
+                return entryID.nid;
+            }
+        });
     }
 
-    get searchFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_SEARCH_FOLDER);
-        if (data instanceof DataView) {
-            const entryID = new EntryID(data);
-            return entryID.nid;
-        }
+    get #searchFolderNID () {
+        return this.#pc.getValueByKey(PropertyContext.PID_TAG_SEARCH_FOLDER).then(data => {
+            if (data instanceof DataView) {
+                const entryID = new EntryID(data);
+                return entryID.nid;
+            }
+        });
     }
 
     get hasPassword () {
-        return typeof this.#pc.getValueByKey(PropertyContext.PID_TAG_PST_PASSWORD) !== "undefined";
+        return this.#pc.getValueByKey(PropertyContext.PID_TAG_PST_PASSWORD).then(value => typeof value !== "undefined");
     }
 
     /**
@@ -46,21 +49,24 @@ export class MessageStore {
         this.#pc = pc;
     }
 
-    getRootFolder () {
-        if (this.rootFolderNID)
-            return this.#file.getFolder(this.rootFolderNID);
+    async getRootFolder () {
+        const nid = await this.#rootFolderNID;
+        if (nid)
+            return this.#file.getFolder(nid);
         return null;
     }
 
-    getDeletedFolder () {
-        if (this.deletedFolderNID)
-            return this.#file.getFolder(this.deletedFolderNID);
+    async getDeletedFolder () {
+        const nid = await this.#deletedFolderNID;
+        if (nid)
+            return this.#file.getFolder(nid);
         return null;
     }
 
-    getSearchFolder () {
-        if (this.searchFolderNID)
-            return this.#file.getFolder(this.searchFolderNID);
+    async getSearchFolder () {
+        const nid = await this.#searchFolderNID;
+        if (nid)
+            return this.#file.getFolder(nid);
         return null;
     }
 

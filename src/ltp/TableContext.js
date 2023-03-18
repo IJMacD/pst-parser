@@ -18,7 +18,7 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {DataView} data
-     * @param {(nid: number) => DataView} subDataAccessor
+     * @param {(nid: number) => Promise<DataView>} subDataAccessor
      */
     constructor (data, subDataAccessor) {
         super(data);
@@ -36,9 +36,9 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {number} N
-     * @returns {DataView}
+     * @returns {Promise<DataView>}
      */
-    getRowData (N) {
+    async getRowData (N) {
         if (N > this.recordCount - 1) {
             throw Error("Trying to get row index " + N + " (count: " + this.recordCount + ")");
         }
@@ -59,7 +59,7 @@ export class TableContext extends HeapNode {
         const rowMatrix =
             (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(this.#info.hnidRows) :
-                this.#subDataAccessor(this.#info.hnidRows);
+                await this.#subDataAccessor(this.#info.hnidRows);
 
         if (!rowMatrix) {
             throw Error("Unable to locate RowMatrix");
@@ -84,11 +84,11 @@ export class TableContext extends HeapNode {
      * @param {number} rowIndex
      * @param {number} iBit iBit in ColumnDescription
      */
-    doesCellExist (rowIndex, iBit) {
+    async doesCellExist (rowIndex, iBit) {
         const cebStart = this.#info.rgib.TCI_1b;
         const cebEnd = this.#info.rgib.TCI_bm;
 
-        const { buffer, byteOffset } = this.getRowData(rowIndex);
+        const { buffer, byteOffset } = await this.getRowData(rowIndex);
         const rgCEB = new Uint8Array(buffer, byteOffset + cebStart, cebEnd - cebStart);
 
         return !!(rgCEB[Math.floor(iBit / 8)] & (1 << (7 - (iBit % 8))));
@@ -98,8 +98,8 @@ export class TableContext extends HeapNode {
      * @param {number} rowIndex
      * @param {import("./TableContextColDesc").TableContextColDesc} columnDesc
      */
-    #getCellDataByColDesc (rowIndex, columnDesc) {
-        const dv = this.getRowData(rowIndex);
+    async #getCellDataByColDesc (rowIndex, columnDesc) {
+        const dv = await this.getRowData(rowIndex);
 
         if (dv.byteLength === 0) {
             throw Error("Got an empty buffer");
@@ -150,22 +150,27 @@ export class TableContext extends HeapNode {
      * @param {number} rowIndex
      * @param {number} columnTag
      */
-    getCellValueByColumnTag (rowIndex, columnTag) {
+    async getCellValueByColumnTag (rowIndex, columnTag) {
         const columnDesc = this.#info.colDescriptions.find(desc => desc.dataTag === columnTag);
 
         if (!columnDesc)
             return;
 
-        const cellData = this.#getCellDataByColDesc(rowIndex, columnDesc);
+        const cellData = await this.#getCellDataByColDesc(rowIndex, columnDesc);
 
         try {
 
             if (columnDesc.dataType === PropertyContext.PTYPE_STRING) {
                 if (cellData === 0) return "";
-                if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
+
+                const nidType = NodeEntry.getNIDType(cellData);
+                if (nidType === NodeEntry.NID_TYPE_HID) {
                     const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
                     const { buffer, byteOffset, byteLength } = this.getItemByHID(hid);
                     return stringFromBuffer(buffer, byteOffset, byteLength);
+                }
+                else {
+                    throw Error("Unimplemented: Getting string data from nidType: 0x" + h(nidType));
                 }
             }
 
@@ -218,6 +223,10 @@ export class TableContext extends HeapNode {
      */
     getAllRowProperties (rowIndex) {
         const cols = this.columnDescriptions;
-        return cols.map(col => ({ tag: col.dataTag, tagHex: "0x"+col.dataTag.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(col.dataTag), value: this.getCellValueByColumnTag(rowIndex, col.dataTag) }));
+        return Promise.all(
+            cols.map(col => this.getCellValueByColumnTag(rowIndex, col.dataTag).then(value =>
+                ({ tag: col.dataTag, tagHex: "0x"+col.dataTag.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(col.dataTag), value })
+            ))
+        );
     }
 }

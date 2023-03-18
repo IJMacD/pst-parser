@@ -10,10 +10,10 @@ export class Folder {
     #aTC;
 
     get nid () { return this.#nid; }
-    get displayName () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
-    get contentCount () { return /** @type {number} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_COUNT)); }
-    get unreadCount () { return /** @type {number} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_UNREAD_COUNT)); }
-    get hasSubfolders () { return /** @type {boolean} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBFOLDERS)); }
+    get displayName () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
+    get contentCount () { return /** @type {Promise<number>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_COUNT)); }
+    get unreadCount () { return /** @type {Promise<number>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_UNREAD_COUNT)); }
+    get hasSubfolders () { return /** @type {Promise<boolean>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBFOLDERS)); }
 
     /**
      * @param {import("..").PSTFile} file
@@ -33,27 +33,27 @@ export class Folder {
     }
 
     getSubFolderEntries () {
-        return Array.from({length: this.#hTC.recordCount}).map((_,i) => {
-            const props = this.#hTC.getAllRowProperties(i);
+        return Promise.all(Array.from({length: this.#hTC.recordCount}).map(async (_,i) => {
+            const props = await this.#hTC.getAllRowProperties(i);
 
             const entry = propertiesToObject(props);
 
-            entry.nid = /** @type {number} */(this.#hTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID));
+            entry.nid = /** @type {number} */(await this.#hTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID));
 
             return entry;
-        });
+        }));
     }
 
-    getContents (start = 0, end = this.contentCount) {
+    async getContents (start = 0, end = this.contentCount) {
         const keys = this.#cTC.rowIndexKeys;
 
         const out = [];
 
         if (keys.length > 0) {
-            for (let i = start; i < end && i < this.contentCount; i++) {
-                const props = this.#cTC.getAllRowProperties(i);
+            for (let i = start; i < await end && i < await this.contentCount; i++) {
+                const props = await this.#cTC.getAllRowProperties(i);
                 const msg = propertiesToObject(props);
-                msg.nid = this.#cTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID);
+                msg.nid = await this.#cTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID);
                 out.push(msg);
             }
         }
@@ -75,7 +75,7 @@ export class Folder {
         return this.#file.getMessage(nid);
     }
 
-    getAllProperties () {
-        return propertiesToObject(this.#pc.getAllProperties());
+    async getAllProperties () {
+        return propertiesToObject(await this.#pc.getAllProperties());
     }
 }

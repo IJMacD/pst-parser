@@ -10,8 +10,8 @@ export class Message {
     get nid () { return this.#nid; }
     // get nidParent () { return this.#node.nidParent; }
 
-    get subject () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBJECT)); }
-    get body () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY)); }
+    get subject () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBJECT)); }
+    get body () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY)); }
     get bodyHTML () {
         const dv = this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY_HTML);
         if (dv instanceof DataView) {
@@ -31,7 +31,18 @@ export class Message {
         this.#pc = pc;
     }
 
-    getAllProperties () {
-        return propertiesToObject(this.#pc.getAllProperties());
+    /**
+     * @param {number} key
+     */
+    async getProperty (key) {
+        const value = await this.#pc.getValueByKey(key);
+        if (value instanceof DataView) {
+            return arrayBufferFromDataView(value);
+        }
+        return value;
+    }
+
+    async getAllProperties () {
+        return propertiesToObject(await this.#pc.getAllProperties());
     }
 }

@@ -12,25 +12,26 @@ export class Page {
     get bid () { return this.#dv.getBigUint64(504, true); }
 
     /**
-     * @param {DataView} dv
+     * @param {ArrayBuffer} buffer
      */
-    constructor (dv) {
-        this.#dv = dv;
+    constructor (buffer) {
+        this.#dv = new DataView(buffer);
     }
 
     /**
-     * @param {DataView} dv
+     * @param {ArrayBuffer} buffer
+     * @param {import("../file/PSTFile").PSTFile} file
      */
-    static getPage (dv) {
-        const p = new Page(dv);
+    static getPage (buffer, file) {
+        const p = new Page(buffer);
 
-        if (p.ptype === 0x80) return new BTPage(dv);
-        if (p.ptype === 0x81) return new BTPage(dv);
-        if (p.ptype === 0x82) return new FMapPage(dv);
-        if (p.ptype === 0x83) return new PMapPage(dv);
-        if (p.ptype === 0x84) return new AMapPage(dv);
-        if (p.ptype === 0x85) return new FPMapPage(dv);
-        if (p.ptype === 0x86) return new DListPage(dv);
+        if (p.ptype === 0x80) return new BTPage(buffer, file);
+        if (p.ptype === 0x81) return new BTPage(buffer, file);
+        if (p.ptype === 0x82) return new FMapPage(buffer);
+        if (p.ptype === 0x83) return new PMapPage(buffer);
+        if (p.ptype === 0x84) return new AMapPage(buffer);
+        if (p.ptype === 0x85) return new FPMapPage(buffer);
+        if (p.ptype === 0x86) return new DListPage(buffer);
 
         return p;
     }
@@ -38,14 +39,17 @@ export class Page {
 
 export class BTPage extends Page {
     #dv;
+    #file;
 
     /**
-     * @param {DataView} dv
+     * @param {ArrayBuffer} buffer
+     * @param {import("../file/PSTFile").PSTFile} file
      */
-    constructor (dv) {
-        super(dv);
+    constructor (buffer, file) {
+        super(buffer);
 
-        this.#dv = dv;
+        this.#file = file;
+        this.#dv = new DataView(buffer);
     }
 
     get cEnt () { return this.#dv.getUint8(488); }
@@ -93,9 +97,9 @@ export class BTPage extends Page {
 
     /**
      * @param {number | bigint} key
-     * @return {(BlockEntry|NodeEntry)?}
+     * @return {Promise<(BlockEntry|NodeEntry)?>}
      */
-    findEntry (key) {
+    async findEntry (key) {
         const keys = this.keys;
 
         // If we're level 0 then either *we* have the key or it doesn't exist.
@@ -125,7 +129,7 @@ export class BTPage extends Page {
                     throw Error("Expected BT Entry");
                 }
 
-                const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
+                const page = await this.#file.getPage(entry.BREF.ib);
                 if (!(page instanceof BTPage)) {
                     throw Error("Expected BT Page");
                 }
@@ -141,7 +145,7 @@ export class BTPage extends Page {
             throw Error("Expected BT Entry");
         }
 
-        const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
+        const page = await this.#file.getPage(entry.BREF.ib);
         if (!(page instanceof BTPage)) {
             throw Error("Expected BT Page");
         }
@@ -151,9 +155,9 @@ export class BTPage extends Page {
 
     /**
      *
-     * @returns {bigint[]}
+     * @returns {Promise<bigint[]>}
      */
-    getAllKeys () {
+    async getAllKeys () {
         if (this.cLevel === 0) {
             return this.keys;
         }
@@ -171,12 +175,12 @@ export class BTPage extends Page {
                 ));
             }
 
-            const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
+            const page = await this.#file.getPage(entry.BREF.ib);
             if (!(page instanceof BTPage)) {
                 throw Error("Expected BT Page");
             }
 
-            out.push(...page.getAllKeys());
+            out.push(...await page.getAllKeys());
         }
 
         return out;

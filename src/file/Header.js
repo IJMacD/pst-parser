@@ -31,18 +31,12 @@ export class Header {
     }
     get qwUnused () { return this.#dv.getBigUint64(172, true); }
     get root () {
-        const dv = new DataView(this.#dv.buffer, this.#dv.byteOffset + 180);
+        const dv = new DataView(this.#dv.buffer, 180);
         return new Root(dv);
     }
     get dwAlign () { return this.#dv.getUint32(252, true); }
-    get rgbFM () {
-        const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 256, offset + 256 + 128);
-    }
-    get rgbFP () {
-        const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 384, offset + 384 + 128);
-    }
+    get rgbFM () { return this.#dv.buffer.slice(256, 256 + 128); }
+    get rgbFP () { return this.#dv.buffer.slice(384, 384 + 128); }
     get bSentinel () { return this.#dv.getUint8(512); }
     get bCryptMethod () { return this.#dv.getUint8(513); }
     get rgbReserved () { return this.#dv.getUint16(514, true); }
@@ -50,15 +44,14 @@ export class Header {
     get dwCRCFull () { return this.#dv.getUint32(524, true); }
     get rgbReserved2 () { return this.#dv.getUint32(528, true) >> 8; }
     get bReserved () { return this.#dv.getUint8(531); }
-    get rgbReserved3 () {
-        const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 532, offset + 532 + 32);
-    }
+    get rgbReserved3 () { return this.#dv.buffer.slice(532, 532 + 32); }
 
     /**
-     * @param {DataView} dv
+     * The Header *must* be at the start of the file so a bare ArrayBuffer is
+     * fine here.
+     * @param {ArrayBuffer} buffer
      */
-    constructor (dv) {
-        this.#dv = dv;
+    constructor (buffer) {
+        this.#dv = new DataView(buffer);
     }
 }
