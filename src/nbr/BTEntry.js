@@ -4,13 +4,15 @@ export class BTEntry {
     #dv;
 
     get btkey () { return this.#dv.getBigUint64(0, true); }
-    get BREF () { return new BREF(this.#dv.buffer, this.#dv.byteOffset + 8); }
+    get BREF () {
+        const dv = new DataView(this.#dv.buffer, this.#dv.byteOffset + 8);
+        return new BREF(dv);
+    }
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {number} offset
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        this.#dv = new DataView(buffer, offset);
+    constructor (dv) {
+        this.#dv = dv;
     }
 }

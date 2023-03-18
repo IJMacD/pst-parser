@@ -1,6 +1,6 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
 import { Utf8ArrayToStr } from "../utf8.js";
-import { propertiesToObject } from "../util.js";
+import { arrayBufferFromDataView, propertiesToObject } from "../util.js";
 
 export class Message {
     #nid;
@@ -13,8 +13,11 @@ export class Message {
     get subject () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBJECT)); }
     get body () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY)); }
     get bodyHTML () {
-        const bytes = this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY_HTML);
-        return bytes instanceof ArrayBuffer ? Utf8ArrayToStr(bytes) : void 0;
+        const dv = this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY_HTML);
+        if (dv instanceof DataView) {
+            const buffer = arrayBufferFromDataView(dv);
+            return Utf8ArrayToStr(buffer);
+        }
     }
 
     /**

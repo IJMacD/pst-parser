@@ -9,7 +9,7 @@
  */
 
 /**
- * @param {ArrayBufferLike} buffer
+ * @param {DataViewLike} buffer
  */
 export function Utf8ArrayToStr (buffer) {
     var out, i, len, c;

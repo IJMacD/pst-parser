@@ -6,7 +6,10 @@ export class SubnodeLeafEntry {
     get bidData () { return this.#dv.getBigUint64(8, true); }
     get bidSub () { return this.#dv.getBigUint64(16, true); }
 
-    constructor (buffer) {
-        this.#dv = new DataView(buffer);
+    /**
+     * @param {DataView} dv
+     */
+    constructor (dv) {
+        this.#dv = dv;
     }
 }

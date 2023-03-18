@@ -1,7 +1,7 @@
 import { NodeEntry } from "../nbr/NodeEntry.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { HeapNode } from "./HeapNode.js";
-import { h } from "../util.js";
+import { arrayBufferFromDataView, h, stringFromBuffer } from "../util.js";
 
 export class PropertyContext extends BTreeOnHeap {
     #subNodeAccessor;
@@ -193,8 +193,8 @@ export class PropertyContext extends BTreeOnHeap {
     static PID_TAG_NAMED_4                  = 0x8003;
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {(nid: number) => ArrayBuffer} subNodeAccessor
+     * @param {DataView} buffer
+     * @param {(nid: number) => DataView} subNodeAccessor
      *
      */
     constructor (buffer, subNodeAccessor) {
@@ -251,7 +251,9 @@ export class PropertyContext extends BTreeOnHeap {
                 this.getItemByHID(record.dwValueHnid) :
                 this.#subNodeAccessor(record.dwValueHnid);
 
-            return String.fromCharCode(...new Uint16Array(data));
+            const { buffer, byteOffset, byteLength } = data;
+
+            return stringFromBuffer(buffer, byteOffset, byteLength);
         }
 
         if (record.wPropType === PropertyContext.PTYPE_BINARY) {
@@ -271,7 +273,7 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         if (record.wPropType === PropertyContext.PTYPE_INTEGER64) {
-            return new DataView(this.getItemByHID(record.dwValueHnid)).getBigUint64(0, true);
+            return this.getItemByHID(record.dwValueHnid).getBigUint64(0, true);
         }
 
         if (record.wPropType === PropertyContext.PTYPE_BOOLEAN) {
@@ -279,7 +281,7 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         if (record.wPropType === PropertyContext.PTYPE_TIME) {
-            const value = new DataView(this.getItemByHID(record.dwValueHnid)).getBigUint64(0, true);
+            const value = this.getItemByHID(record.dwValueHnid).getBigUint64(0, true);
             const UNIX_TIME_START = 0x019DB1DED53E8000n; //January 1, 1970 (start of Unix epoch) in "ticks"
             const TICKS_PER_MILLISECOND = 10000n; // a tick is 100ns
             const timestamp = (value - UNIX_TIME_START) / TICKS_PER_MILLISECOND;
@@ -289,11 +291,9 @@ export class PropertyContext extends BTreeOnHeap {
         if (record.wPropType === PropertyContext.PTYPE_GUID) {
             const nidType = NodeEntry.getNIDType(record.dwValueHnid);
 
-            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#subNodeAccessor(record.dwValueHnid);
-
-            const dv = new DataView(data);
 
             const d1 = dv.getUint32(0, true).toString(16).padStart(8, "0");
             const d2 = dv.getUint16(4, true).toString(16).padStart(4, "0");
@@ -310,17 +310,19 @@ export class PropertyContext extends BTreeOnHeap {
 
             const nidType = NodeEntry.getNIDType(record.dwValueHnid);
 
-            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#subNodeAccessor(record.dwValueHnid);
 
-            const dv = new DataView(data);
+            const { buffer, byteOffset, byteLength } = dv;
+
             const count = dv.getUint32(0, true);
             const out = [];
             for (let i = 0; i < count; i++) {
                 const start = dv.getUint32((i + 1) * 4, true);
-                const end = dv.getUint32((i + 2) * 4, true);
-                out.push(String.fromCharCode(...new Uint16Array(data.slice(start, end))));
+                const end = Math.min(dv.getUint32((i + 2) * 4, true), byteLength);
+                const length = end - start;
+                out.push(stringFromBuffer(buffer, byteOffset + start, length));
             }
             return out;
         }
@@ -334,7 +336,15 @@ export class PropertyContext extends BTreeOnHeap {
                 this.getItemByHID(record.dwValueHnid) :
                 this.#subNodeAccessor(record.dwValueHnid);
 
-            return [...new Uint32Array(data)];
+            const { buffer, byteOffset, byteLength } = data;
+
+            if (byteOffset % 4) {
+                // Uint32Array *must* start on a multiple of 4
+                const intBuffer = arrayBufferFromDataView(data);
+                return [...new Uint32Array(intBuffer)];
+            }
+
+            return [...new Uint32Array(buffer, byteOffset, byteLength/4)];
         }
 
         console.debug(`Unable to get data of type 0x${h(record.wPropType)}`);

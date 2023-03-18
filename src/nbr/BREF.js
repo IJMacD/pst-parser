@@ -5,17 +5,16 @@ export class BREF {
     get ib () { return this.#dv.getBigUint64(8, true); }
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {number} offset
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        this.#dv = new DataView(buffer, offset);
+    constructor (dv) {
+        this.#dv = dv;
     }
 
     /**
      * @param {number | bigint} bid
      */
     static isInternalBID(bid) {
-        return Boolean(typeof bid === "bigint" ? (bid & 0x2n) : (bid & 0x02));
+        return Boolean(typeof bid === "bigint" ? (bid & 0x02n) : (bid & 0x02));
     }
 }

@@ -18,9 +18,9 @@ export class TableContextColDesc {
     get iBit () { return this.#dv.getUint8(7); }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      */
-    constructor (buffer) {
-        this.#dv = new DataView(buffer);
+    constructor (dv) {
+        this.#dv = dv;
     }
 }

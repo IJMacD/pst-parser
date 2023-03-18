@@ -12,28 +12,25 @@ export class Page {
     get bid () { return this.#dv.getBigUint64(504, true); }
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {number|bigint} offset
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        const o = typeof offset === "bigint" ? parseInt(offset.toString()) : offset;
-        this.#dv = new DataView(buffer, o);
+    constructor (dv) {
+        this.#dv = dv;
     }
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {number|bigint} offset
+     * @param {DataView} dv
      */
-    static getPage (buffer, offset) {
-        const p = new Page(buffer, offset);
+    static getPage (dv) {
+        const p = new Page(dv);
 
-        if (p.ptype === 0x80) return new BTPage(buffer, offset);
-        if (p.ptype === 0x81) return new BTPage(buffer, offset);
-        if (p.ptype === 0x82) return new FMapPage(buffer, offset);
-        if (p.ptype === 0x83) return new PMapPage(buffer, offset);
-        if (p.ptype === 0x84) return new AMapPage(buffer, offset);
-        if (p.ptype === 0x85) return new FPMapPage(buffer, offset);
-        if (p.ptype === 0x86) return new DListPage(buffer, offset);
+        if (p.ptype === 0x80) return new BTPage(dv);
+        if (p.ptype === 0x81) return new BTPage(dv);
+        if (p.ptype === 0x82) return new FMapPage(dv);
+        if (p.ptype === 0x83) return new PMapPage(dv);
+        if (p.ptype === 0x84) return new AMapPage(dv);
+        if (p.ptype === 0x85) return new FPMapPage(dv);
+        if (p.ptype === 0x86) return new DListPage(dv);
 
         return p;
     }
@@ -43,14 +40,12 @@ export class BTPage extends Page {
     #dv;
 
     /**
-     * @param {ArrayBufferLike} buffer
-     * @param {number|bigint} offset
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        super(buffer, offset);
+    constructor (dv) {
+        super(dv);
 
-        const o = typeof offset === "bigint" ? parseInt(offset.toString()) : offset;
-        this.#dv = new DataView(buffer, o);
+        this.#dv = dv;
     }
 
     get cEnt () { return this.#dv.getUint8(488); }
@@ -67,15 +62,15 @@ export class BTPage extends Page {
 
         if (this.cLevel === 0) {
             if (this.ptype === 0x80) {
-                return new BlockEntry(this.#dv.buffer, this.#dv.byteOffset + begin);
+                return new BlockEntry(new DataView(this.#dv.buffer, this.#dv.byteOffset + begin));
             }
             if (this.ptype === 0x81) {
-                return new NodeEntry(this.#dv.buffer, this.#dv.byteOffset + begin);
+                return new NodeEntry(new DataView(this.#dv.buffer, this.#dv.byteOffset + begin));
             }
             throw Error("Invalid BT Page");
         }
 
-        return new BTEntry(this.#dv.buffer, this.#dv.byteOffset + begin);
+        return new BTEntry(new DataView(this.#dv.buffer, this.#dv.byteOffset + begin));
     }
 
     get keys () {
@@ -130,7 +125,7 @@ export class BTPage extends Page {
                     throw Error("Expected BT Entry");
                 }
 
-                const page = Page.getPage(this.#dv.buffer, entry.BREF.ib);
+                const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
                 if (!(page instanceof BTPage)) {
                     throw Error("Expected BT Page");
                 }
@@ -146,7 +141,7 @@ export class BTPage extends Page {
             throw Error("Expected BT Entry");
         }
 
-        const page = Page.getPage(this.#dv.buffer, entry.BREF.ib);
+        const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
         if (!(page instanceof BTPage)) {
             throw Error("Expected BT Page");
         }
@@ -176,7 +171,7 @@ export class BTPage extends Page {
                 ));
             }
 
-            const page = Page.getPage(this.#dv.buffer, entry.BREF.ib);
+            const page = Page.getPage(new DataView(this.#dv.buffer, parseInt(entry.BREF.ib.toString())));
             if (!(page instanceof BTPage)) {
                 throw Error("Expected BT Page");
             }

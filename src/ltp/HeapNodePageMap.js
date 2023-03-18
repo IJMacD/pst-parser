@@ -9,10 +9,9 @@ export class HeapNodePageMap {
     }
 
     /**
-     * @param {ArrayBuffer} buffer
-     * @param {number} offset
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        this.#dv = new DataView(buffer, offset);
+    constructor (dv) {
+        this.#dv = dv;
     }
 }

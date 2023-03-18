@@ -17,10 +17,10 @@ export class HeapNode {
     get rgbFillLevel () { return this.#dv.getUint32(8, true); }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      */
-    constructor (buffer) {
-        this.#dv = new DataView(buffer);
+    constructor (dv) {
+        this.#dv = dv;
     }
 
     /**
@@ -28,12 +28,20 @@ export class HeapNode {
      */
     #getPageMap (blockIndex) {
         const blockOffset = 8192 * blockIndex;
+
+        const { buffer, byteOffset, byteLength } = this.#dv;
+
         try {
             const ibHnpm = this.#dv.getUint16(blockOffset, true);
-            return new HeapNodePageMap(this.#dv.buffer, blockOffset + ibHnpm);
+
+            const length = byteLength - (blockOffset + ibHnpm);
+
+            const dv = new DataView(buffer, byteOffset + blockOffset + ibHnpm, length);
+
+            return new HeapNodePageMap(dv);
         } catch (e) {
             if (e instanceof RangeError) {
-                console.error(`HeapNode: Trying to get pageMap for block index ${blockIndex}. It should be at offset 0x${h(blockOffset)} but the buffer is only 0x${h(this.#dv.byteLength)} long.`);
+                console.error(`HeapNode: Trying to get pageMap for block index ${blockIndex}. It should be at offset 0x${h(byteOffset + blockOffset)} but the buffer is only 0x${h(byteLength)} long.`);
             }
             throw e;
         }
@@ -42,6 +50,7 @@ export class HeapNode {
     /**
      * @param {number} itemIndex
      * @param {number} blockIndex
+     * @returns {DataView}
      */
     #getItem (itemIndex, blockIndex) {
         // Get page map for the requested block
@@ -56,17 +65,21 @@ export class HeapNode {
 
         const begin = blockOffset + pageMap.rgibAlloc[n];
         const end = blockOffset + pageMap.rgibAlloc[n + 1];
+        const length = end - begin;
 
-        return this.#dv.buffer.slice(begin, end);
+        const { buffer, byteOffset } = this.#dv;
+
+        return new DataView(buffer, byteOffset + begin, length);
     }
 
     /**
      * @param {number} hid
+     * @return {DataView}
      */
     getItemByHID (hid) {
         const { hidIndex, hidBlockIndex } = HeapNode.parseHid(hid);
 
-        if (hidIndex === 0) return new ArrayBuffer(0);
+        if (hidIndex === 0) return new DataView(new ArrayBuffer(0));
 
         return this.#getItem(hidIndex - 1, hidBlockIndex);
     }

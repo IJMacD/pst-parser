@@ -11,7 +11,7 @@ export class MessageStore {
 
     get rootFolderNID () {
         const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_ROOT_MAILBOX);
-        if (data instanceof ArrayBuffer) {
+        if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
         }
@@ -19,7 +19,7 @@ export class MessageStore {
 
     get deletedFolderNID () {
         const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_DELETED_ITEMS);
-        if (data instanceof ArrayBuffer) {
+        if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
         }
@@ -27,7 +27,7 @@ export class MessageStore {
 
     get searchFolderNID () {
         const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_SEARCH_FOLDER);
-        if (data instanceof ArrayBuffer) {
+        if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
         }

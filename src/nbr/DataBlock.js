@@ -7,7 +7,7 @@ export class DataBlock {
     }
 
     get data () {
-        return this.#dv.buffer.slice(this.#dv.byteOffset, this.#dv.byteOffset + this.#dataSize);
+        return new DataView(this.#dv.buffer, this.#dv.byteOffset, this.#dataSize);
     }
 
     // BLOCKTRAILER
@@ -17,12 +17,11 @@ export class DataBlock {
     get bid () { return this.#dv.getBigUint64(this.blockSize - 8, true); }
 
     /**
-     * @param {ArrayBufferLike} buffer
-     * @param {number} offset
+     * @param {DataView} dv
      * @param {number} dataSize
      */
-    constructor (buffer, offset, dataSize) {
-        this.#dv = new DataView(buffer, offset);
+    constructor (dv, dataSize) {
+        this.#dv = dv;
         this.#dataSize = dataSize;
     }
 }
