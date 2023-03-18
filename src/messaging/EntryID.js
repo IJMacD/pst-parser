@@ -7,9 +7,9 @@ export class EntryID {
     get nid () { return this.#dv.getUint32(20, true); }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      */
-    constructor (buffer) {
-        this.#dv = new DataView(buffer);
+    constructor (dv) {
+        this.#dv = dv;
     }
 }

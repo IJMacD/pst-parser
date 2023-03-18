@@ -26,31 +26,30 @@ export class PSTFile {
     #buffer;
     #header;
 
+    #rootNBTPage;
+    #rootBBTPage;
+
     static NID_MESSAGE_STORE    = 0x21;
     static NID_ROOT_FOLDER      = 0x122;
-
-    get #rootNBTPage () {
-        const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
-        if (!(rootNBTPage instanceof BTPage)) {
-            throw Error("Root NBT Page was not correct page type");
-        }
-        return rootNBTPage;
-    }
-
-    get #rootBBTPage () {
-        const rootBBTPage = this.#getPage(this.#header.root.BREFBBT.ib);
-        if (!(rootBBTPage instanceof BTPage)) {
-            throw Error("Root BBT Page was not correct page type");
-        }
-        return rootBBTPage;
-    }
 
     /**
      * @param {ArrayBuffer} buffer
      */
     constructor (buffer) {
         this.#buffer = buffer;
-        this.#header = new Header(buffer);
+        this.#header = new Header(new DataView(buffer));
+
+        const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
+        if (!(rootNBTPage instanceof BTPage)) {
+            throw Error("Root NBT Page was not correct page type");
+        }
+        this.#rootNBTPage = rootNBTPage;
+
+        const rootBBTPage = this.#getPage(this.#header.root.BREFBBT.ib);
+        if (!(rootBBTPage instanceof BTPage)) {
+            throw Error("Root BBT Page was not correct page type");
+        }
+        this.#rootBBTPage = rootBBTPage;
     }
 
     /**
@@ -58,7 +57,8 @@ export class PSTFile {
      */
     #getPage (ib) {
         const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
-        return Page.getPage(this.#buffer, offset);
+        const dv = new DataView(this.#buffer, offset);
+        return Page.getPage(dv);
     }
 
     /**
@@ -99,34 +99,36 @@ export class PSTFile {
 
         if (entry instanceof BlockEntry) {
             const offset = parseInt(entry.BREF.ib.toString());
+            const dv = new DataView(this.#buffer, offset);
 
             if (BREF.isInternalBID(bid)) {
-                const b = new InternalBlock(this.#buffer, offset, entry.cb);
+                const b = new InternalBlock(dv, entry.cb);
 
                 if (b.bType === 0x01 && b.cLevel === 1) {
-                    return new XBlock(this.#buffer, offset, entry.cb);
+                    return new XBlock(dv, entry.cb);
                 }
                 else if (b.bType === 0x01 && b.cLevel === 2) {
-                    return new XXBlock(this.#buffer, offset, entry.cb);
+                    return new XXBlock(dv, entry.cb);
                 }
                 else if (b.bType === 0x02 && b.cLevel === 0) {
-                    return new SubnodeLeafBlock(this.#buffer, offset, entry.cb);
+                    return new SubnodeLeafBlock(dv, entry.cb);
                 }
                 else if (b.bType === 0x02 && b.cLevel > 0) {
-                    return new SubnodeIntermediateBlock(this.#buffer, offset, entry.cb);
+                    return new SubnodeIntermediateBlock(dv, entry.cb);
                 }
             }
             else {
-                return new DataBlock(this.#buffer, offset, entry.cb);
+                return new DataBlock(dv, entry.cb);
             }
         }
     }
 
     /**
      * @param {bigint} bid
-     * @returns {ArrayBuffer}
+     * @param {DataView} [target]
+     * @returns {DataView}
      */
-    #getBlockData (bid) {
+    #getBlockData (bid, target) {
         const block = this.#getBlock(bid);
 
         if (!block) {
@@ -134,25 +136,49 @@ export class PSTFile {
         }
 
         if (block instanceof DataBlock) {
-            const data = cloneArrayBuffer(block.data);
+
             if (this.#header.bCryptMethod === 1) {
-                CryptPermute(data, data.byteLength, false);
+                const data = block.data;
+
+                if (target instanceof DataView) {
+                    // If we were given a dataView then we don't need to create
+                    // a new DataView. We can permute directly into the
+                    // dataView our caller wants.
+
+                    CryptPermute(data, data.byteLength, false, target);
+
+                    return target;
+                }
+
+                // Caller just wants a fresh ArrayBuffer
+                const out = new DataView(new ArrayBuffer(data.byteLength));
+                CryptPermute(data, data.byteLength, false, out);
+                return out;
             }
-            return data;
+
+            // No permutation required
+
+            if (target instanceof DataView) {
+                // If we were given a dataView we need to copy from the block
+                // into the dataView our caller wants.
+                const { buffer, byteOffset, byteLength } = block.data;
+                const source = new Uint8Array(buffer, byteOffset, byteLength);
+                const dest = new Uint8Array(target.buffer, target.byteOffset, target.byteLength);
+                dest.set(source);
+            }
+
+            return block.data;
         }
 
         if (block instanceof XBlock) {
-            const out = new Uint8Array(block.cEnt * 8192);
+            const out = new ArrayBuffer(block.cEnt * 8192);
 
-            let offset = 0;
             for (let i = 0; i < block.cEnt; i++) {
                 const dataBid = block.getBID(i);
-                const data = new Uint8Array(this.#getBlockData(dataBid));
-                out.set(data, offset);
-                offset += 8192;
+                this.#getBlockData(dataBid, new DataView(out, i * 8192, 8192));
             }
 
-            return out.buffer;
+            return new DataView(out);
         }
 
         if (block instanceof SubnodeIntermediateBlock) {
@@ -185,6 +211,7 @@ export class PSTFile {
 
     /**
      * @param {number | bigint} nid
+     * @returns {(nid: number) => DataView}
      */
     #getNodeSubDataAccessor (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
@@ -196,7 +223,7 @@ export class PSTFile {
         return (/** @type {number} */ internalNid) => {
 
             if (entry.bidSub === 0n) {
-                return new ArrayBuffer(0);
+                return new DataView(new ArrayBuffer(0));
             }
 
             const block = this.#getBlock(entry.bidSub);
@@ -291,7 +318,7 @@ export class PSTFile {
 /**
  * @param {ArrayBuffer} src
  */
-function cloneArrayBuffer(src) {
+function cloneDataView(src) {
     const dst = new ArrayBuffer(src.byteLength);
     new Uint8Array(dst).set(new Uint8Array(src));
     return dst;

@@ -23,15 +23,16 @@ export class TableContextInfo {
     get rowWidth () { return this.rgib.TCI_bm; }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      */
-    constructor (buffer) {
-        this.#dv = new DataView(buffer);
+    constructor (dv) {
+        this.#dv = dv;
 
         this.#tcoldesc = Array.from({length: this.cCols }).map((_,i) => {
             const start = 22 + i * 8;
-            const b = buffer.slice(start, start + 8);
-            return new TableContextColDesc(b);
+            const { buffer, byteOffset } = dv;
+            const tccddv = new DataView(buffer, byteOffset + start, 8)
+            return new TableContextColDesc(tccddv);
         });
     }
 }

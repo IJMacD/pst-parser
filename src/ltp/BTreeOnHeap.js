@@ -12,17 +12,17 @@ export class BTreeOnHeap extends HeapNode {
     get keys () { return this.#getKeys(this.hidRoot, this.bIdxLevels); }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      * @param {number} [hid]
      */
-    constructor (buffer, hid) {
-        super(buffer);
+    constructor (dv, hid) {
+        super(dv);
 
         if (typeof hid === "undefined") {
             hid = this.hidUserRoot;
         }
 
-        this.#dv = new DataView(this.getItemByHID(hid));
+        this.#dv = this.getItemByHID(hid);
     }
 
     /**
@@ -65,7 +65,8 @@ export class BTreeOnHeap extends HeapNode {
      * @param {number} n
      */
     #getRecord (hid, level, n) {
-        const dv = new DataView(this.getItemByHID(hid));
+        const dv = this.getItemByHID(hid);
+        const offset = dv.byteOffset;
         const dataSize = level === 0 ? this.cbEnt : 4;
         const recordSize = this.cbKey + dataSize;
         const recordCount = dv.byteLength / recordSize;
@@ -75,31 +76,32 @@ export class BTreeOnHeap extends HeapNode {
         }
 
         const begin = n * recordSize;
+        const bufferBegin = offset + begin;
 
         if (this.cbKey === 2) {
             const key = dv.getUint16(begin, true);
-            const data = dv.buffer.slice(begin + this.cbKey, begin + recordSize);
+            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 4) {
             const key = dv.getUint32(begin, true);
-            const data = dv.buffer.slice(begin + this.cbKey, begin + recordSize);
+            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 8) {
             const key = dv.getBigUint64(begin, true);
-            const data = dv.buffer.slice(begin + this.cbKey, begin + recordSize);
+            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 16) {
-            const key = dv.buffer.slice(begin, begin + 16);
-            const data = dv.buffer.slice(begin + this.cbKey, begin + recordSize);
+            const key = dv.buffer.slice(bufferBegin, bufferBegin + 16);
+            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
@@ -114,7 +116,7 @@ export class BTreeOnHeap extends HeapNode {
     #getLevelRecordCount (hid, level) {
         if (hid === 0) return 0;
 
-        const dv = new DataView(this.getItemByHID(hid));
+        const dv = this.getItemByHID(hid);
         const dataSize = level === 0 ? this.cbEnt : 4;
         const recordSize = this.cbKey + dataSize;
         return dv.byteLength / recordSize;

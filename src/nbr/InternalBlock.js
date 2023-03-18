@@ -19,12 +19,11 @@ export class InternalBlock {
     get bid () { return this.#dv.getBigUint64(this.blockSize - 8, true); }
 
     /**
-     * @param {ArrayBufferLike} buffer
-     * @param {number} offset
+     * @param {DataView} dv
      * @param {number} dataSize
      */
-    constructor (buffer, offset, dataSize) {
-        this.#dv = new DataView(buffer, offset);
+    constructor (dv, dataSize) {
+        this.#dv = dv;
         this.#dataSize = dataSize;
     }
 }

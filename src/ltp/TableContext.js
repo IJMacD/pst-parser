@@ -3,7 +3,7 @@ import { HeapNode } from "./HeapNode.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { PropertyContext } from "./PropertyContext.js";
 import { TableContextInfo } from "./TableContextInfo.js";
-import { h } from "../util.js";
+import { h, stringFromBuffer } from "../util.js";
 
 export class TableContext extends HeapNode {
     #subDataAccessor;
@@ -17,8 +17,8 @@ export class TableContext extends HeapNode {
     get columnDescriptions () { return this.#info.colDescriptions; }
 
     /**
-     * @param {ArrayBuffer} data
-     * @param {(nid: number) => ArrayBuffer} subDataAccessor
+     * @param {DataView} data
+     * @param {(nid: number) => DataView} subDataAccessor
      */
     constructor (data, subDataAccessor) {
         super(data);
@@ -36,6 +36,7 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {number} N
+     * @returns {DataView}
      */
     getRowData (N) {
         if (N > this.recordCount - 1) {
@@ -75,7 +76,8 @@ export class TableContext extends HeapNode {
             throw Error("About to create a null buffer slice");
         }
 
-        return rowMatrix.slice(start, start + rowWidth);
+        const { buffer, byteOffset } = rowMatrix;
+        return new DataView(buffer, byteOffset + start, rowWidth);
     }
 
     /**
@@ -86,7 +88,8 @@ export class TableContext extends HeapNode {
         const cebStart = this.#info.rgib.TCI_1b;
         const cebEnd = this.#info.rgib.TCI_bm;
 
-        const rgCEB = new Uint8Array(this.getRowData(rowIndex).slice(cebStart, cebEnd));
+        const { buffer, byteOffset } = this.getRowData(rowIndex);
+        const rgCEB = new Uint8Array(buffer, byteOffset + cebStart, cebEnd - cebStart);
 
         return !!(rgCEB[Math.floor(iBit / 8)] & (1 << (7 - (iBit % 8))));
     }
@@ -96,7 +99,7 @@ export class TableContext extends HeapNode {
      * @param {import("./TableContextColDesc").TableContextColDesc} columnDesc
      */
     #getCellDataByColDesc (rowIndex, columnDesc) {
-        const dv = new DataView(this.getRowData(rowIndex));
+        const dv = this.getRowData(rowIndex);
 
         if (dv.byteLength === 0) {
             throw Error("Got an empty buffer");
@@ -161,8 +164,8 @@ export class TableContext extends HeapNode {
                 if (cellData === 0) return "";
                 if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
                     const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
-                    const data = this.getItemByHID(hid);
-                    return String.fromCharCode(...new Uint16Array(data));
+                    const { buffer, byteOffset, byteLength } = this.getItemByHID(hid);
+                    return stringFromBuffer(buffer, byteOffset, byteLength);
                 }
             }
 

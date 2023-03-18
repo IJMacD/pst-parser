@@ -4,14 +4,22 @@ import { SubnodeLeafEntry } from "./SubnodeLeafEntry.js";
 export class SubnodeLeafBlock extends InternalBlock {
     #dv;
 
-    constructor (buffer, offset, dataSize) {
-        super(buffer, offset, dataSize);
+    /**
+     * @param {DataView} dv
+     * @param {number} dataSize
+     */
+    constructor (dv, dataSize) {
+        super(dv, dataSize);
 
-        this.#dv = new DataView(buffer, offset);
+        this.#dv = dv;
     }
 
+    /**
+     * @param {number} n
+     */
     getEntry (n) {
         const begin = this.#dv.byteOffset + 8 + n * 24;
-        return new SubnodeLeafEntry(this.#dv.buffer.slice(begin, begin + 24));
+        const dv = new DataView(this.#dv.buffer, begin, 24);
+        return new SubnodeLeafEntry(dv);
     }
 }

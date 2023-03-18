@@ -8,16 +8,16 @@ export class Root {
     get ibAMapLast () { return this.#dv.getBigUint64(12, true); }
     get cbAMapFree () { return this.#dv.getBigUint64(20, true); }
     get cbPMapFree () { return this.#dv.getBigUint64(28, true); }
-    get BREFNBT () { return new BREF(this.#dv.buffer, this.#dv.byteOffset + 36); }
-    get BREFBBT () { return new BREF(this.#dv.buffer, this.#dv.byteOffset + 52); }
+    get BREFNBT () { return new BREF(new DataView(this.#dv.buffer, this.#dv.byteOffset + 36)); }
+    get BREFBBT () { return new BREF(new DataView(this.#dv.buffer, this.#dv.byteOffset + 52)); }
     get fAMapValid () { return this.#dv.getUint8(68); }
     get bReserved () { return this.#dv.getUint8(69); }
     get wReserved () { return this.#dv.getUint16(70, true); }
 
     /**
-     * @param {ArrayBuffer} buffer
+     * @param {DataView} dv
      */
-    constructor (buffer, offset) {
-        this.#dv = new DataView(buffer, offset, 72);
+    constructor (dv) {
+        this.#dv = dv;
     }
 }
