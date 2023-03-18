@@ -2,7 +2,7 @@
 
 set -e
 
-commits=$(git log --no-merges --pretty='format:%h' master ^HEAD)
+commits=$(git log --no-merges --pretty='format:%h' master^..HEAD)
 
 for commit in $commits
 do
