@@ -5,5 +5,8 @@
     "main": "./src/index.js",
     "repository": {
         "url": "https://github.com/IJMacD/pst-parser.git"
+    },
+    "devDependencies": {
+        "nanobench": "^3.0.0"
     }
 }
