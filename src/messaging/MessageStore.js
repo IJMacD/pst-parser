@@ -1,76 +1,84 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
+import { arrayBufferFromDataView, propertiesToObject } from "../util.js";
 import { EntryID } from "./EntryID.js";
 
 export class MessageStore {
     #file;
-    #pc;
+    #data;
 
-    get recordKey () { return this.#pc.getValueByKey(PropertyContext.PID_TAG_RECORD_KEY); }
+    get recordKey () { return this.getProperty(PropertyContext.PID_TAG_RECORD_KEY); }
 
-    get displayName () { return /** @type {Promise<string>} */ (this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
+    get displayName () { return /** @type {string} */ (this.getProperty(PropertyContext.PID_TAG_DISPLAY_NAME)); }
 
     get #rootFolderNID () {
-        return this.#pc.getValueByKey(PropertyContext.PID_TAG_ROOT_MAILBOX).then(data => {
-            if (data instanceof DataView) {
-                const entryID = new EntryID(data);
-                return entryID.nid;
-            }
-        });
+        const data = this.getProperty(PropertyContext.PID_TAG_ROOT_MAILBOX);
+        if (data instanceof ArrayBuffer) {
+            const entryID = new EntryID(new DataView(data));
+            return entryID.nid;
+        }
     }
 
     get #deletedFolderNID () {
-        return this.#pc.getValueByKey(PropertyContext.PID_TAG_DELETED_ITEMS).then(data => {
-            if (data instanceof DataView) {
-                const entryID = new EntryID(data);
-                return entryID.nid;
-            }
-        });
+        const data =  this.getProperty(PropertyContext.PID_TAG_DELETED_ITEMS);
+        if (data instanceof ArrayBuffer) {
+            const entryID = new EntryID(new DataView(data));
+            return entryID.nid;
+        }
     }
 
     get #searchFolderNID () {
-        return this.#pc.getValueByKey(PropertyContext.PID_TAG_SEARCH_FOLDER).then(data => {
-            if (data instanceof DataView) {
-                const entryID = new EntryID(data);
-                return entryID.nid;
-            }
-        });
+        const data = this.getProperty(PropertyContext.PID_TAG_SEARCH_FOLDER);
+        if (data instanceof ArrayBuffer) {
+            const entryID = new EntryID(new DataView(data));
+            return entryID.nid;
+        }
     }
 
     get hasPassword () {
-        return this.#pc.getValueByKey(PropertyContext.PID_TAG_PST_PASSWORD).then(value => typeof value !== "undefined");
+        return typeof this.getProperty(PropertyContext.PID_TAG_PST_PASSWORD) !== "undefined";
     }
 
     /**
      * @param {import("..").PSTFile} file
-     * @param {PropertyContext} pc
+     * @param {import("../util.js").PropertyData[]} data
      */
-    constructor (file, pc) {
+    constructor (file, data) {
         this.#file = file;
-        this.#pc = pc;
+        this.#data = data;
     }
 
-    async getRootFolder () {
-        const nid = await this.#rootFolderNID;
-        if (nid)
-            return this.#file.getFolder(nid);
+    getRootFolder () {
+        if (this.#rootFolderNID)
+            return this.#file.getFolder(this.#rootFolderNID);
         return null;
     }
 
-    async getDeletedFolder () {
-        const nid = await this.#deletedFolderNID;
-        if (nid)
-            return this.#file.getFolder(nid);
+    getDeletedFolder () {
+        if (this.#deletedFolderNID)
+            return this.#file.getFolder(this.#deletedFolderNID);
         return null;
     }
 
-    async getSearchFolder () {
-        const nid = await this.#searchFolderNID;
-        if (nid)
-            return this.#file.getFolder(nid);
+    getSearchFolder () {
+        if (this.#searchFolderNID)
+            return this.#file.getFolder(this.#searchFolderNID);
         return null;
+    }
+
+    /**
+     * @param {number} key
+     */
+    getProperty (key) {
+        const data = this.#data.find(pd => pd.tag === key);
+        if (!data) return;
+        const { value } = data;
+        if (value instanceof DataView) {
+            return arrayBufferFromDataView(value);
+        }
+        return value;
     }
 
     getAllProperties () {
-        return this.#pc.getAllProperties();
+        return propertiesToObject(this.#data);
     }
 }

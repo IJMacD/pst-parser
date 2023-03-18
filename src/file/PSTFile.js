@@ -20,7 +20,7 @@ import { MessageStore } from "../messaging/MessageStore.js";
 import { Folder } from "../messaging/Folder.js";
 import { Message } from "../messaging/Message.js";
 
-import { h } from "../util.js";
+import { h, propertiesToObject } from "../util.js";
 
 export class PSTFile {
     #blob;
@@ -304,8 +304,9 @@ export class PSTFile {
     async getMessageStore () {
         const pc = await this.#getPropertyContext(PSTFile.NID_MESSAGE_STORE);
         if (pc) {
-            return new MessageStore(this, pc);
+            return new MessageStore(this, await pc.getAllProperties());
         }
+        return null;
     }
 
     getRootFolder () {
@@ -322,18 +323,34 @@ export class PSTFile {
 
         const pc = await this.#getPropertyContext(nid);
 
+        if (!pc) {
+            return null;
+        }
+
         const hTc = await this.#getTableContext(hierarchyNid);
 
         const cTc = await this.#getTableContext(contentsNid);
 
         const aTc = await this.#getTableContext(assocContentsNid);
 
+        const subFolderEntries = await Promise.all(Array.from({length: hTc.recordCount}).map(async (_,i) => {
+            const props = await hTc.getAllRowProperties(i);
 
-        if (pc && hTc && cTc && aTc) {
-            return new Folder(this, nid, pc, hTc, cTc, aTc);
-        }
+            const entry = propertiesToObject(props);
 
-        return null;
+            entry.nid = /** @type {number} */(await hTc.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID));
+
+            return entry;
+        }));
+
+        return new Folder(
+            this,
+            nid,
+            await pc.getAllProperties(),
+            subFolderEntries,
+            cTc,
+            null
+        );
     }
 
     /**
@@ -343,9 +360,10 @@ export class PSTFile {
         if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
             const pc = await this.#getPropertyContext(nid);
             if (pc) {
-                return new Message(this, nid, pc)
+                return new Message(nid, await pc.getAllProperties());
             }
         }
+        return null;
     }
 
     /**

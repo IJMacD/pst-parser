@@ -4,45 +4,43 @@ import { arrayBufferFromDataView, propertiesToObject } from "../util.js";
 
 export class Message {
     #nid;
-    #pc;
-    #file;
+    #data;
 
     get nid () { return this.#nid; }
     // get nidParent () { return this.#node.nidParent; }
 
-    get subject () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBJECT)); }
-    get body () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY)); }
+    get subject () { return /** @type {string} */(this.getProperty(PropertyContext.PID_TAG_SUBJECT)); }
+    get body () { return /** @type {string} */(this.getProperty(PropertyContext.PID_TAG_BODY)); }
     get bodyHTML () {
-        const dv = this.#pc.getValueByKey(PropertyContext.PID_TAG_BODY_HTML);
-        if (dv instanceof DataView) {
-            const buffer = arrayBufferFromDataView(dv);
-            return Utf8ArrayToStr(buffer);
+        const value = this.getProperty(PropertyContext.PID_TAG_BODY_HTML);
+        if (value instanceof ArrayBuffer) {
+            return Utf8ArrayToStr(value);
         }
     }
 
     /**
-     * @param {import("..").PSTFile} file
      * @param {number} nid
-     * @param {PropertyContext} pc
+     * @param {import("../util.js").PropertyData[]} data
      */
-    constructor (file, nid, pc) {
-        this.#file = file;
+    constructor (nid, data) {
         this.#nid = nid;
-        this.#pc = pc;
+        this.#data = data;
     }
 
     /**
      * @param {number} key
      */
-    async getProperty (key) {
-        const value = await this.#pc.getValueByKey(key);
+    getProperty (key) {
+        const data = this.#data.find(pd => pd.tag === key);
+        if (!data) return;
+        const { value } = data;
         if (value instanceof DataView) {
             return arrayBufferFromDataView(value);
         }
         return value;
     }
 
-    async getAllProperties () {
-        return propertiesToObject(await this.#pc.getAllProperties());
+    getAllProperties () {
+        return propertiesToObject(this.#data);
     }
 }

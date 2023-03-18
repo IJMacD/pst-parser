@@ -1,47 +1,40 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
-import { propertiesToObject } from "../util.js";
+import { TableContext } from "../ltp/TableContext.js";
+import { arrayBufferFromDataView, propertiesToObject } from "../util.js";
 
 export class Folder {
     #file;
     #nid;
-    #pc;
-    #hTC;
+    #data;
+    #subFolderEntries;
     #cTC;
     #aTC;
 
     get nid () { return this.#nid; }
-    get displayName () { return /** @type {Promise<string>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
-    get contentCount () { return /** @type {Promise<number>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_COUNT)); }
-    get unreadCount () { return /** @type {Promise<number>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_UNREAD_COUNT)); }
-    get hasSubfolders () { return /** @type {Promise<boolean>} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBFOLDERS)); }
+    get displayName () { return /** @type {string} */(this.getProperty(PropertyContext.PID_TAG_DISPLAY_NAME)); }
+    get contentCount () { return /** @type {number} */(this.getProperty(PropertyContext.PID_TAG_CONTENT_COUNT)); }
+    get unreadCount () { return /** @type {number} */(this.getProperty(PropertyContext.PID_TAG_CONTENT_UNREAD_COUNT)); }
+    get hasSubfolders () { return /** @type {boolean} */(this.getProperty(PropertyContext.PID_TAG_SUBFOLDERS)); }
 
     /**
-     * @param {import("..").PSTFile} file
+     * @param {import("../file/PSTFile").PSTFile} file
      * @param {number} nid
-     * @param {PropertyContext} pc
-     * @param {import("../ltp/TableContext").TableContext} hTC
-     * @param {import("../ltp/TableContext").TableContext} cTC
-     * @param {import("../ltp/TableContext").TableContext} aTC
+     * @param {import("../util.js").PropertyData[]} data
+     * @param {object[]} subFolderEntries
+     * @param {TableContext} cTC
+     * @param {object[]?} aTC
      */
-    constructor (file, nid, pc, hTC, cTC, aTC) {
+    constructor (file, nid, data, subFolderEntries, cTC, aTC) {
         this.#file = file;
         this.#nid = nid;
-        this.#pc = pc;
-        this.#hTC = hTC;
+        this.#data = data;
+        this.#subFolderEntries = subFolderEntries;
         this.#cTC = cTC;
         this.#aTC = aTC;
     }
 
     getSubFolderEntries () {
-        return Promise.all(Array.from({length: this.#hTC.recordCount}).map(async (_,i) => {
-            const props = await this.#hTC.getAllRowProperties(i);
-
-            const entry = propertiesToObject(props);
-
-            entry.nid = /** @type {number} */(await this.#hTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID));
-
-            return entry;
-        }));
+        return this.#subFolderEntries;
     }
 
     async getContents (start = 0, end = this.contentCount) {
@@ -50,7 +43,7 @@ export class Folder {
         const out = [];
 
         if (keys.length > 0) {
-            for (let i = start; i < await end && i < await this.contentCount; i++) {
+            for (let i = start; i < end && i < this.contentCount; i++) {
                 const props = await this.#cTC.getAllRowProperties(i);
                 const msg = propertiesToObject(props);
                 msg.nid = await this.#cTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID);
@@ -75,7 +68,21 @@ export class Folder {
         return this.#file.getMessage(nid);
     }
 
-    async getAllProperties () {
-        return propertiesToObject(await this.#pc.getAllProperties());
+
+    /**
+     * @param {number} key
+     */
+    getProperty (key) {
+        const data = this.#data.find(pd => pd.tag === key);
+        if (!data) return;
+        const { value } = data;
+        if (value instanceof DataView) {
+            return arrayBufferFromDataView(value);
+        }
+        return value;
+    }
+
+    getAllProperties () {
+        return propertiesToObject(this.#data);
     }
 }
