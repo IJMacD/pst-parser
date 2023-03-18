@@ -51,7 +51,7 @@ export class BTreeOnHeap extends HeapNode {
 
         for (let i = 0; i < count; i++) {
             const record = this.#getRecord(hid, level, i);
-            const nextHid = new DataView(record.data).getUint32(0, true);
+            const nextHid = record.data.getUint32(0, true);
 
             out.push(...this.#getKeys(nextHid, level - 1));
         }
@@ -78,30 +78,28 @@ export class BTreeOnHeap extends HeapNode {
         const begin = n * recordSize;
         const bufferBegin = offset + begin;
 
+        const data = new DataView(dv.buffer, bufferBegin + this.cbKey, dataSize);
+
         if (this.cbKey === 2) {
             const key = dv.getUint16(begin, true);
-            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 4) {
             const key = dv.getUint32(begin, true);
-            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 8) {
             const key = dv.getBigUint64(begin, true);
-            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
 
         if (this.cbKey === 16) {
             const key = dv.buffer.slice(bufferBegin, bufferBegin + 16);
-            const data = dv.buffer.slice(bufferBegin + this.cbKey, bufferBegin + recordSize);
 
             return  { key, data };
         }
@@ -137,7 +135,7 @@ export class BTreeOnHeap extends HeapNode {
 
                 if (record.key > key) {
                     const prevRecord = this.#getRecord(hid, level, i - 1);
-                    hid = new DataView(prevRecord.data).getUint32(0, true);
+                    hid = prevRecord.data.getUint32(0, true);
 
                     break; // break for
                 }

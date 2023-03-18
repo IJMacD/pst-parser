@@ -225,12 +225,10 @@ export class PropertyContext extends BTreeOnHeap {
             throw Error("Invalid key length");
         }
 
-        const dv = new DataView(data);
-
         return {
             wPropId,
-            wPropType: dv.getUint16(0, true),
-            dwValueHnid: dv.getUint32(2, true),
+            wPropType: data.getUint16(0, true),
+            dwValueHnid: data.getUint32(2, true),
         };
     }
 
