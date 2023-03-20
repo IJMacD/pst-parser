@@ -195,7 +195,12 @@ export class PropertyContext extends BTreeOnHeap {
      * @param {number} tag
      */
     static getTagName (tag) {
+        if (tag < 0x8000 && !TagNames[tag]) {
+            unknownTags.add(tag);
+            console.log([...unknownTags.values()].map(t => "0x"+h(t).padStart(4,"0")).sort().join(" "));
+        }
         return TagNames[tag];
     }
 }
 
+const unknownTags = new Set();
