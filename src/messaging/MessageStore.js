@@ -1,16 +1,17 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
 import { EntryID } from "./EntryID.js";
+import * as Tags from "../ltp/Tags.js";
 
 export class MessageStore {
     #file;
     #pc;
 
-    get recordKey () { return this.#pc.getValueByKey(PropertyContext.PID_TAG_RECORD_KEY); }
+    get recordKey () { return this.#pc.getValueByKey(Tags.PID_TAG_RECORD_KEY); }
 
-    get displayName () { return /** @type {string} */ (this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
+    get displayName () { return /** @type {string} */ (this.#pc.getValueByKey(Tags.PID_TAG_DISPLAY_NAME)); }
 
     get rootFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_ROOT_MAILBOX);
+        const data = this.#pc.getValueByKey(Tags.PID_TAG_ROOT_MAILBOX);
         if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
@@ -18,7 +19,7 @@ export class MessageStore {
     }
 
     get deletedFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_DELETED_ITEMS);
+        const data = this.#pc.getValueByKey(Tags.PID_TAG_DELETED_ITEMS);
         if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
@@ -26,7 +27,7 @@ export class MessageStore {
     }
 
     get searchFolderNID () {
-        const data = this.#pc.getValueByKey(PropertyContext.PID_TAG_SEARCH_FOLDER);
+        const data = this.#pc.getValueByKey(Tags.PID_TAG_SEARCH_FOLDER);
         if (data instanceof DataView) {
             const entryID = new EntryID(data);
             return entryID.nid;
@@ -34,7 +35,7 @@ export class MessageStore {
     }
 
     get hasPassword () {
-        return typeof this.#pc.getValueByKey(PropertyContext.PID_TAG_PST_PASSWORD) !== "undefined";
+        return typeof this.#pc.getValueByKey(Tags.PID_TAG_PST_PASSWORD) !== "undefined";
     }
 
     /**
@@ -46,22 +47,25 @@ export class MessageStore {
         this.#pc = pc;
     }
 
-    getRootFolder () {
-        if (this.rootFolderNID)
-            return this.#file.getFolder(this.rootFolderNID);
+    /**
+     * @param {number} [nid]
+     */
+    getFolder (nid) {
+        if (nid)
+            return this.#file.getFolder(nid);
         return null;
+    }
+
+    getRootFolder () {
+        return this.getFolder(this.rootFolderNID);
     }
 
     getDeletedFolder () {
-        if (this.deletedFolderNID)
-            return this.#file.getFolder(this.deletedFolderNID);
-        return null;
+        return this.getFolder(this.deletedFolderNID);
     }
 
     getSearchFolder () {
-        if (this.searchFolderNID)
-            return this.#file.getFolder(this.searchFolderNID);
-        return null;
+        return this.getFolder(this.searchFolderNID);
     }
 
     getAllProperties () {

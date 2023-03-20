@@ -1,5 +1,6 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
 import { propertiesToObject } from "../util.js";
+import * as Tags from "../ltp/Tags.js";
 
 export class Folder {
     #file;
@@ -10,10 +11,10 @@ export class Folder {
     #aTC;
 
     get nid () { return this.#nid; }
-    get displayName () { return /** @type {string} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_DISPLAY_NAME)); }
-    get contentCount () { return /** @type {number} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_COUNT)); }
-    get unreadCount () { return /** @type {number} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_CONTENT_UNREAD_COUNT)); }
-    get hasSubfolders () { return /** @type {boolean} */(this.#pc.getValueByKey(PropertyContext.PID_TAG_SUBFOLDERS)); }
+    get displayName () { return /** @type {string} */(this.#pc.getValueByKey(Tags.PID_TAG_DISPLAY_NAME)); }
+    get contentCount () { return /** @type {number} */(this.#pc.getValueByKey(Tags.PID_TAG_CONTENT_COUNT)); }
+    get unreadCount () { return /** @type {number} */(this.#pc.getValueByKey(Tags.PID_TAG_CONTENT_UNREAD_COUNT)); }
+    get hasSubfolders () { return /** @type {boolean} */(this.#pc.getValueByKey(Tags.PID_TAG_SUBFOLDERS)); }
 
     /**
      * @param {import("..").PSTFile} file
@@ -38,7 +39,7 @@ export class Folder {
 
             const entry = propertiesToObject(props);
 
-            entry.nid = /** @type {number} */(this.#hTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID));
+            entry.nid = /** @type {number} */(this.#hTC.getCellValueByColumnTag(i, Tags.PID_TAG_LTP_ROW_ID));
 
             return entry;
         });
@@ -53,7 +54,7 @@ export class Folder {
             for (let i = start; i < end && i < this.contentCount; i++) {
                 const props = this.#cTC.getAllRowProperties(i);
                 const msg = propertiesToObject(props);
-                msg.nid = this.#cTC.getCellValueByColumnTag(i, PropertyContext.PID_TAG_LTP_ROW_ID);
+                msg.nid = this.#cTC.getCellValueByColumnTag(i, Tags.PID_TAG_LTP_ROW_ID);
                 out.push(msg);
             }
         }
