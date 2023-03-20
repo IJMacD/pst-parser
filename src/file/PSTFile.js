@@ -29,8 +29,10 @@ export class PSTFile {
     #rootNBTPage;
     #rootBBTPage;
 
-    static NID_MESSAGE_STORE    = 0x21;
-    static NID_ROOT_FOLDER      = 0x122;
+    static NID_MESSAGE_STORE    = 0x0021;
+    static NID_ROOT_FOLDER      = 0x0122;
+
+    static #PST_MAGIC = "!BDN";
 
     /**
      * @param {ArrayBuffer} buffer
@@ -38,6 +40,10 @@ export class PSTFile {
     constructor (buffer) {
         this.#buffer = buffer;
         this.#header = new Header(new DataView(buffer));
+
+        if (this.#header.dwMagic !== PSTFile.#PST_MAGIC) {
+            throw Error("Does not look like a PST file");
+        }
 
         const rootNBTPage = this.#getPage(this.#header.root.BREFNBT.ib);
         if (!(rootNBTPage instanceof BTPage)) {
@@ -272,6 +278,7 @@ export class PSTFile {
         if (pc) {
             return new MessageStore(this, pc);
         }
+        return null;
     }
 
     getRootFolder () {
@@ -313,13 +320,4 @@ export class PSTFile {
             }
         }
     }
-}
-
-/**
- * @param {ArrayBuffer} src
- */
-function cloneDataView(src) {
-    const dst = new ArrayBuffer(src.byteLength);
-    new Uint8Array(dst).set(new Uint8Array(src));
-    return dst;
 }
