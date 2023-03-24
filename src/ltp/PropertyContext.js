@@ -4,7 +4,7 @@ import { HeapNode } from "./HeapNode.js";
 import { h } from "../util/util.js";
 import { arrayBufferFromDataView } from "../util/arrayBufferFromDataView.js";
 import { stringFromBuffer } from "../util/stringFromBuffer.js";
-import { TagNames } from "./Tags.js";
+import { TagNames } from "./TagNames.js";
 import { formatGuid } from "../util/formatGuid.js";
 
 export class PropertyContext extends BTreeOnHeap {

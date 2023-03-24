@@ -5,7 +5,7 @@ import { PropertyContext } from "./PropertyContext.js";
 import { TableContextInfo } from "./TableContextInfo.js";
 import { h } from "../util/util.js";
 import { stringFromBuffer } from "../util/stringFromBuffer.js";
-import { TagNames } from "./Tags.js";
+import { TagNames } from "./TagNames.js";
 
 export class TableContext extends HeapNode {
     #subDataAccessor;
