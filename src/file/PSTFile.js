@@ -21,6 +21,7 @@ import { Folder } from "../messaging/Folder.js";
 import { Message } from "../messaging/Message.js";
 
 import { h } from "../util/util.js";
+import { NamedPropertyMap } from "../messaging/NamedPropertyMap.js";
 
 export class PSTFile {
     #buffer;
@@ -28,6 +29,9 @@ export class PSTFile {
 
     #rootNBTPage;
     #rootBBTPage;
+
+    /** @type {NamedPropertyMap} */
+    #namedPropertyMap;
 
     static #PST_MAGIC = "!BDN";
 
@@ -263,15 +267,31 @@ export class PSTFile {
         }
     }
 
+    #getNamedPropertyAccessor () {
+        return (/** @type {number} */ tag) => {
+            if (!this.#namedPropertyMap) {
+                const nid = NodeEntry.NID_NAME_TO_ID_MAP;
+                const data = this.#getNodeData(nid);
+                const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+                const namedPropertyAccessor = () => null;
+
+                this.#namedPropertyMap = new NamedPropertyMap(data, subDataAccessor, namedPropertyAccessor);
+            }
+
+            return this.#namedPropertyMap.getTagName(tag);
+        }
+    }
+
     /**
      * @param {number} nid
      */
     getPropertyContext (nid) {
         const data = this.#getNodeData(nid);
         const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+        const namedPropertyAccessor = this.#getNamedPropertyAccessor();
 
         if (data) {
-            return new PropertyContext(data, subDataAccessor);
+            return new PropertyContext(data, subDataAccessor, namedPropertyAccessor);
         }
 
         return null;
@@ -283,8 +303,9 @@ export class PSTFile {
     #getTableContext (nid) {
         const data = this.#getNodeData(nid);
         const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+        const namedPropertyAccessor = this.#getNamedPropertyAccessor();
 
-        return new TableContext(data, subDataAccessor);
+        return new TableContext(data, subDataAccessor, namedPropertyAccessor);
     }
 
     getMessageStore () {

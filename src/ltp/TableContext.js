@@ -5,12 +5,14 @@ import { PropertyContext } from "./PropertyContext.js";
 import { TableContextInfo } from "./TableContextInfo.js";
 import { h } from "../util/util.js";
 import { stringFromBuffer } from "../util/stringFromBuffer.js";
+import { TagNames } from "./Tags.js";
 
 export class TableContext extends HeapNode {
     #subDataAccessor;
     #info;
     #rowIndex;
     #blockOffsets;
+    #namedPropertyAccessor;
 
     get recordCount () { return this.#rowIndex.keys.length; }
 
@@ -21,8 +23,9 @@ export class TableContext extends HeapNode {
     /**
      * @param {{ data: DataView, blockOffsets: number[] }} data
      * @param {(nid: number) => DataView} subDataAccessor
+     * @param {(tag: number) => string} namedPropertyAccessor
      */
-    constructor (data, subDataAccessor) {
+    constructor (data, subDataAccessor, namedPropertyAccessor) {
         super(data);
 
         if (this.bClientSig !== HeapNode.TYPE_TABLE_CONTEXT) {
@@ -32,6 +35,7 @@ export class TableContext extends HeapNode {
         this.#blockOffsets = data.blockOffsets;
 
         this.#subDataAccessor = subDataAccessor;
+        this.#namedPropertyAccessor = namedPropertyAccessor;
 
         this.#info = new TableContextInfo(this.getItemByHID(this.hidUserRoot));
 
@@ -222,6 +226,14 @@ export class TableContext extends HeapNode {
      */
     getAllRowProperties (rowIndex) {
         const cols = this.columnDescriptions;
-        return cols.map(col => ({ tag: col.dataTag, tagHex: "0x"+col.dataTag.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(col.dataTag), value: this.getCellValueByColumnTag(rowIndex, col.dataTag) }));
+        return cols.map(col => ({ tag: col.dataTag, tagHex: "0x"+col.dataTag.toString(16).padStart(4, "0"), tagName: this.getTagName(col.dataTag), value: this.getCellValueByColumnTag(rowIndex, col.dataTag) }));
+    }
+
+    /**
+     * @param {number} tag
+     */
+    getTagName (tag) {
+        if (tag >= 0x8000) return this.#namedPropertyAccessor(tag);
+        return TagNames[tag];
     }
 }

@@ -9,6 +9,7 @@ import { formatGuid } from "../util/formatGuid.js";
 
 export class PropertyContext extends BTreeOnHeap {
     #subNodeAccessor;
+    #namedPropertyAccessor;
 
     static PTYPE_UNSPECIFIED    = 0x0000;
     static PTYPE_NULL           = 0x0001;
@@ -36,11 +37,13 @@ export class PropertyContext extends BTreeOnHeap {
     /**
      * @param {{ data: DataView, blockOffsets: number[]}} data
      * @param {(nid: number) => DataView} subNodeAccessor
+     * @param {(tag: number) => string?} namedPropertyAccessor
      */
-    constructor (data, subNodeAccessor) {
+    constructor (data, subNodeAccessor, namedPropertyAccessor) {
         super(data);
 
         this.#subNodeAccessor = subNodeAccessor;
+        this.#namedPropertyAccessor = namedPropertyAccessor;
 
         if (this.bClientSig !== HeapNode.TYPE_PROPERTY_CONTEXT) {
             throw Error("HeapNode is not a PropertyContext. bClientSig: " + this.bClientSig.toString(16));
@@ -183,13 +186,14 @@ export class PropertyContext extends BTreeOnHeap {
 
     getAllProperties () {
         const keys = /** @type {number[]} */(this.keys);
-        return keys.map(key => ({ tag: key, tagHex: "0x"+key.toString(16).padStart(4, "0"), tagName: PropertyContext.getTagName(key), value: this.getValueByKey(key) }));
+        return keys.map(key => ({ tag: key, tagHex: "0x"+key.toString(16).padStart(4, "0"), tagName: this.getTagName(key), value: this.getValueByKey(key) }));
     }
 
     /**
      * @param {number} tag
      */
-    static getTagName (tag) {
+    getTagName (tag) {
+        if (tag >= 0x8000) return this.#namedPropertyAccessor(tag);
         return TagNames[tag];
     }
 }
