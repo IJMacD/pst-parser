@@ -230,7 +230,7 @@ export class PSTFile {
 
     /**
      * @param {number | bigint} nid
-     * @returns {(nid: number) => DataView}
+     * @returns {(internalNid: number) => DataView}
      */
     #getNodeSubDataAccessor (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
@@ -263,7 +263,7 @@ export class PSTFile {
                 }
             }
 
-            throw Error(`SubnodeLeafBlock does not contain internal nid ${internalNid}`);
+            throw Error(`SubnodeLeafBlock does not contain internal nid 0x${h(internalNid)}`);
         }
     }
 
@@ -350,8 +350,26 @@ export class PSTFile {
     getMessage (nid) {
         if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
             const pc = this.getPropertyContext(nid);
+
+            let recipientTable = null;
+
+            try {
+                const subDataAccessor = this.#getNodeSubDataAccessor(nid);
+                const subData = subDataAccessor(NodeEntry.NID_RECIPIENT_TABLE);
+
+                const subDataStub = () => new DataView(new ArrayBuffer(0));
+                const namedPropertyAccessor = this.#getNamedPropertyAccessor();
+
+                recipientTable = new TableContext({ data: subData, blockOffsets: [0] }, subDataStub, namedPropertyAccessor);
+            }
+            catch (e) {
+                // Messages are required to have recipient tables but apparantly
+                // they don't always
+                console.log(`NID=${nid} ${e.message}`);
+            }
+
             if (pc) {
-                return new Message(this, nid, pc)
+                return new Message(this, nid, pc, recipientTable);
             }
         }
     }
