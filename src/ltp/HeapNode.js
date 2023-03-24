@@ -9,6 +9,7 @@ export class HeapNode {
     static TYPE_PROPERTY_CONTEXT = 0xBC;
 
     #dv;
+    #blockOffsets;
 
     get ibHnpm () { return this.#dv.getUint16(0, true); }
     get bSig () { return this.#dv.getUint8(2); }
@@ -17,17 +18,18 @@ export class HeapNode {
     get rgbFillLevel () { return this.#dv.getUint32(8, true); }
 
     /**
-     * @param {DataView} dv
+     * @param {{ data: DataView, blockOffsets: number[] }} data
      */
-    constructor (dv) {
-        this.#dv = dv;
+    constructor (data) {
+        this.#dv = data.data;
+        this.#blockOffsets = data.blockOffsets;
     }
 
     /**
      * @param {number} blockIndex
      */
     #getPageMap (blockIndex) {
-        const blockOffset = 8192 * blockIndex;
+        const blockOffset = this.#blockOffsets[blockIndex];
 
         const { buffer, byteOffset, byteLength } = this.#dv;
 
@@ -61,7 +63,7 @@ export class HeapNode {
             throw RangeError("Invalid Heap Item - Index: " + itemIndex + " (Block: " + blockIndex + ")");
         }
 
-        const blockOffset = 8192 * blockIndex;
+        const blockOffset = this.#blockOffsets[blockIndex];
 
         const begin = blockOffset + pageMap.rgibAlloc[n];
         const end = blockOffset + pageMap.rgibAlloc[n + 1];

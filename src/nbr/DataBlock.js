@@ -2,6 +2,8 @@ export class DataBlock {
     #dv;
     #dataSize;
 
+    get dataSize () { return this.#dataSize; }
+
     get blockSize () {
         return Math.ceil((this.#dataSize + 16)/64)*64;
     }

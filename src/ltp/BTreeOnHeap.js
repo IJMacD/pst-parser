@@ -12,11 +12,11 @@ export class BTreeOnHeap extends HeapNode {
     get keys () { return this.#getKeys(this.hidRoot, this.bIdxLevels); }
 
     /**
-     * @param {DataView} dv
+     * @param {{ data: DataView, blockOffsets: number []}} data
      * @param {number} [hid]
      */
-    constructor (dv, hid) {
-        super(dv);
+    constructor (data, hid) {
+        super(data);
 
         if (typeof hid === "undefined") {
             hid = this.hidUserRoot;

@@ -10,6 +10,7 @@ export class TableContext extends HeapNode {
     #subDataAccessor;
     #info;
     #rowIndex;
+    #blockOffsets;
 
     get recordCount () { return this.#rowIndex.keys.length; }
 
@@ -18,7 +19,7 @@ export class TableContext extends HeapNode {
     get columnDescriptions () { return this.#info.colDescriptions; }
 
     /**
-     * @param {DataView} data
+     * @param {{ data: DataView, blockOffsets: number[] }} data
      * @param {(nid: number) => DataView} subDataAccessor
      */
     constructor (data, subDataAccessor) {
@@ -27,6 +28,8 @@ export class TableContext extends HeapNode {
         if (this.bClientSig !== HeapNode.TYPE_TABLE_CONTEXT) {
             throw Error("HeapNode is not a TableContext. bClientSig: " + this.bClientSig.toString(16));
         }
+
+        this.#blockOffsets = data.blockOffsets;
 
         this.#subDataAccessor = subDataAccessor;
 
@@ -71,7 +74,7 @@ export class TableContext extends HeapNode {
         }
 
         const rowWidth = this.#info.rowWidth;
-        const start = SIZE_OF_BLOCK * blockIndex + rowIndex * rowWidth;
+        const start = this.#blockOffsets[blockIndex] + rowIndex * rowWidth;
 
         if (start > rowMatrix.byteLength || rowWidth === 0) {
             throw Error("About to create a null buffer slice");

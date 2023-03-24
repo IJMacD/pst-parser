@@ -34,12 +34,11 @@ export class PropertyContext extends BTreeOnHeap {
     static PTYPE_MULTIPLE_STRING    = 0x101F;
 
     /**
-     * @param {DataView} buffer
+     * @param {{ data: DataView, blockOffsets: number[]}} data
      * @param {(nid: number) => DataView} subNodeAccessor
-     *
      */
-    constructor (buffer, subNodeAccessor) {
-        super(buffer);
+    constructor (data, subNodeAccessor) {
+        super(data);
 
         this.#subNodeAccessor = subNodeAccessor;
 
@@ -194,4 +193,3 @@ export class PropertyContext extends BTreeOnHeap {
         return TagNames[tag];
     }
 }
-

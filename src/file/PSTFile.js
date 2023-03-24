@@ -129,7 +129,7 @@ export class PSTFile {
     /**
      * @param {bigint} bid
      * @param {DataView} [target]
-     * @returns {DataView}
+     * @returns {{data: DataView, blockOffsets: number[] }}
      */
     #getBlockData (bid, target) {
         const block = this.#getBlock(bid);
@@ -150,13 +150,13 @@ export class PSTFile {
 
                     CryptPermute(data, data.byteLength, false, target);
 
-                    return target;
+                    return { data: target, blockOffsets: [0] };
                 }
 
                 // Caller just wants a fresh ArrayBuffer
                 const out = new DataView(new ArrayBuffer(data.byteLength));
                 CryptPermute(data, data.byteLength, false, out);
-                return out;
+                return { data: out, blockOffsets: [0] };
             }
 
             // No permutation required
@@ -170,18 +170,30 @@ export class PSTFile {
                 dest.set(source);
             }
 
-            return block.data;
+            return {data: block.data, blockOffsets: [0] };
         }
 
         if (block instanceof XBlock) {
             const out = new ArrayBuffer(block.cEnt * 8192);
 
+            let offset = 0;
+            const blockOffsets = [];
+
             for (let i = 0; i < block.cEnt; i++) {
                 const dataBid = block.getBID(i);
-                this.#getBlockData(dataBid, new DataView(out, i * 8192, 8192));
+                const dataBlock = this.#getBlock(dataBid);
+                if (dataBlock instanceof DataBlock) {
+                    const dataSize = dataBlock.dataSize;
+                    this.#getBlockData(dataBid, new DataView(out, offset, dataSize));
+                    blockOffsets.push(offset);
+                    offset += dataSize;
+                }
+                else {
+                    throw Error("Unexpected Block type as child of XBlock");
+                }
             }
 
-            return new DataView(out);
+            return { data: new DataView(out), blockOffsets };
         }
 
         if (block instanceof SubnodeIntermediateBlock) {
@@ -243,7 +255,7 @@ export class PSTFile {
                 const e = block.getEntry(i);
                 const nid = parseInt((e.nid & 0xFFFFFFFFn).toString());
                 if (nid === internalNid) {
-                    return this.#getBlockData(e.bidData);
+                    return this.#getBlockData(e.bidData).data;
                 }
             }
 
