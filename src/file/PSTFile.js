@@ -20,7 +20,7 @@ import { MessageStore } from "../messaging/MessageStore.js";
 import { Folder } from "../messaging/Folder.js";
 import { Message } from "../messaging/Message.js";
 
-import { h } from "../util.js";
+import { h } from "../util/util.js";
 
 export class PSTFile {
     #buffer;
@@ -28,9 +28,6 @@ export class PSTFile {
 
     #rootNBTPage;
     #rootBBTPage;
-
-    static NID_MESSAGE_STORE    = 0x0021;
-    static NID_ROOT_FOLDER      = 0x0122;
 
     static #PST_MAGIC = "!BDN";
 
@@ -257,15 +254,20 @@ export class PSTFile {
     /**
      * @param {number} nid
      */
-    #getPropertyContext (nid) {
+    getPropertyContext (nid) {
         const data = this.#getNodeData(nid);
         const subDataAccessor = this.#getNodeSubDataAccessor(nid);
 
         if (data) {
             return new PropertyContext(data, subDataAccessor);
         }
+
+        return null;
     }
 
+    /**
+     * @param {number | bigint} nid
+     */
     #getTableContext (nid) {
         const data = this.#getNodeData(nid);
         const subDataAccessor = this.#getNodeSubDataAccessor(nid);
@@ -274,7 +276,7 @@ export class PSTFile {
     }
 
     getMessageStore () {
-        const pc = this.#getPropertyContext(PSTFile.NID_MESSAGE_STORE);
+        const pc = this.getPropertyContext(NodeEntry.NID_MESSAGE_STORE);
         if (pc) {
             return new MessageStore(this, pc);
         }
@@ -282,7 +284,7 @@ export class PSTFile {
     }
 
     getRootFolder () {
-        return this.getFolder(PSTFile.NID_ROOT_FOLDER);
+        return this.getFolder(NodeEntry.NID_ROOT_FOLDER);
     }
 
     /**
@@ -293,7 +295,7 @@ export class PSTFile {
         const contentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_CONTENTS_TABLE);
         const assocContentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE);
 
-        const pc = this.#getPropertyContext(nid);
+        const pc = this.getPropertyContext(nid);
 
         const hTc = this.#getTableContext(hierarchyNid);
 
@@ -314,7 +316,7 @@ export class PSTFile {
      */
     getMessage (nid) {
         if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
-            const pc = this.#getPropertyContext(nid);
+            const pc = this.getPropertyContext(nid);
             if (pc) {
                 return new Message(this, nid, pc)
             }

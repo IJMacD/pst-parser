@@ -3,7 +3,8 @@ import { HeapNode } from "./HeapNode.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { PropertyContext } from "./PropertyContext.js";
 import { TableContextInfo } from "./TableContextInfo.js";
-import { h, stringFromBuffer } from "../util.js";
+import { h } from "../util/util.js";
+import { stringFromBuffer } from "../util/stringFromBuffer.js";
 
 export class TableContext extends HeapNode {
     #subDataAccessor;

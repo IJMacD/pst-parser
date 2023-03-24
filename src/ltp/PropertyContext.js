@@ -1,8 +1,11 @@
 import { NodeEntry } from "../nbr/NodeEntry.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { HeapNode } from "./HeapNode.js";
-import { arrayBufferFromDataView, h, stringFromBuffer } from "../util.js";
+import { h } from "../util/util.js";
+import { arrayBufferFromDataView } from "../util/arrayBufferFromDataView.js";
+import { stringFromBuffer } from "../util/stringFromBuffer.js";
 import { TagNames } from "./Tags.js";
+import { formatGuid } from "../util/formatGuid.js";
 
 export class PropertyContext extends BTreeOnHeap {
     #subNodeAccessor;
@@ -131,14 +134,7 @@ export class PropertyContext extends BTreeOnHeap {
                 this.getItemByHID(record.dwValueHnid) :
                 this.#subNodeAccessor(record.dwValueHnid);
 
-            const d1 = dv.getUint32(0, true).toString(16).padStart(8, "0");
-            const d2 = dv.getUint16(4, true).toString(16).padStart(4, "0");
-            const d3 = dv.getUint16(6, true).toString(16).padStart(4, "0");
-            const d4 = dv.getUint16(8, false).toString(16).padStart(4, "0");
-            const d5a = dv.getUint32(10, false).toString(16).padStart(8, "0");
-            const d5b = dv.getUint16(14, false).toString(16).padStart(4, "0");
-
-            return `{${d1}-${d2}-${d3}-${d4}-${d5a}${d5b}}`;
+            return formatGuid(dv);
         }
 
         if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_STRING) {

@@ -1,6 +1,7 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
 import { Utf8ArrayToStr } from "../utf8.js";
-import { arrayBufferFromDataView, propertiesToObject } from "../util.js";
+import { propertiesToObject } from "../util/propertiesToObject.js";
+import { arrayBufferFromDataView } from "../util/arrayBufferFromDataView.js";
 import * as Tags from "../ltp/Tags.js";
 
 export class Message {

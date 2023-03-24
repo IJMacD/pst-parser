@@ -23,6 +23,21 @@ export class NodeEntry {
     static NID_TYPE_SEARCH_TABLE_INDEX      = 0x13;
     static NID_TYPE_LTP                     = 0x1F;
 
+    static NID_MESSAGE_STORE                = 0x21; // Message store node (section 2.4.3).
+    static NID_NAME_TO_ID_MAP               = 0x61; // Named Properties Map (section 2.4.7).
+    static NID_NORMAL_FOLDER_TEMPLATE       = 0xA1; // Special template node for an empty Folder object.
+    static NID_SEARCH_FOLDER_TEMPLATE       = 0xC1; // Special template node for an empty search Folder object.
+    static NID_ROOT_FOLDER                  = 0x122; // Root Mailbox Folder object of PST.
+    static NID_SEARCH_MANAGEMENT_QUEUE      = 0x1E1; // Queue of Pending Search-related updates.
+    static NID_SEARCH_ACTIVITY_LIST         = 0x201; // Folder object NIDs with active Search activity.
+    static NID_RESERVED1                    = 0x241; // Reserved.
+    static NID_SEARCH_DOMAIN_OBJECT         = 0x261; // Global list of all Folder objects that are referenced by any Folder object's Search Criteria.
+    static NID_SEARCH_GATHERER_QUEUE        = 0x281; // Search Gatherer Queue (section 2.4.8.5.1).
+    static NID_SEARCH_GATHERER_DESCRIPTOR   = 0x2A1; // Search Gatherer Descriptor (section 2.4.8.5.2).
+    static NID_RESERVED2                    = 0x2E1; // Reserved.
+    static NID_RESERVED3                    = 0x301; // Reserved.
+    static NID_SEARCH_GATHERER_FOLDER_QUEUE = 0x321; // Search Gatherer Folder Queue (section 2.4.8.5.3).
+
     get nid () { return this.#dv.getBigUint64(0, true); }
     get bidData () { return this.#dv.getBigUint64(8, true); }
     get bidSub () { return this.#dv.getBigUint64(16, true); }

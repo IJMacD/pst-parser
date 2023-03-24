@@ -81,12 +81,15 @@ export const PID_TAG_RTF_COMPRESSED                             = 0x1009;
 export const PID_TAG_BODY_HTML                                  = 0x1013;
 export const PID_TAG_BODY_CONTENT_ID                            = 0x1015;
 export const PID_TAG_NATIVE_BODY                                = 0x1016;
+export const PID_TAG_INTERNET_DISTRIBUTION                      = 0x1032;
+export const PID_TAG_INTERNET_FOLLOWUP_ID                       = 0x1033;
 export const PID_TAG_INTERNET_MESSAGE_ID                        = 0x1035;
 export const PID_TAG_INTERNET_REFERENCES                        = 0x1039;
 export const PID_TAG_IN_REPLY_TO_ID                             = 0x1042;
 export const PID_TAG_LIST_UNSUBSCRIBE                           = 0x1045;
 export const PID_TAG_ICON_INDEX                                 = 0x1080;
 export const PID_TAG_ITEM_TEMPORARY_FLAGS                       = 0x1097;
+export const PID_TAG_ICALENDAR_END_TIME                         = 0x10C4;
 export const PID_TAG_ATTR_HIDDEN                                = 0x10F4;
 export const PID_TAG_ATTR_SYSTEM                                = 0x10F5;
 export const PID_TAG_ATTR_READONLY                              = 0x10F6;
@@ -225,6 +228,10 @@ export const PID_TAG_DELETED_COUNT_TOTAL                        = 0x7C0F;
 
 
 export const TagNames = {
+    [PID_TAG_NAMEID_BUCKET_COUNT]: "nameidBucketCount",
+    [PID_TAG_NAMEID_STREAM_GUID]: "nameidStreamGuid",
+    [PID_TAG_NAMEID_STREAM_ENTRY]: "nameidStreamEntry",
+    [PID_TAG_NAMEID_STRING_STREAM]: "nameidStringStream",
     [PID_TAG_IMPORTANCE]: "importance",
     [PID_TAG_MESSAGE_CLASS]: "messageClass",
     [PID_TAG_ORIGINATOR_DELIVERY_REPORT_REQUESTED]: "originatorDeliveryReportRequested",
@@ -302,12 +309,15 @@ export const TagNames = {
     [PID_TAG_BODY_HTML]: "bodyHTML",
     [PID_TAG_BODY_CONTENT_ID]: "bodyContentID",
     [PID_TAG_NATIVE_BODY]: "nativeBody",
+    [PID_TAG_INTERNET_DISTRIBUTION]: "internetDistribution",
+    [PID_TAG_INTERNET_FOLLOWUP_ID]: "internetFollowUpID",
     [PID_TAG_INTERNET_MESSAGE_ID]: "internetMessageID",
     [PID_TAG_INTERNET_REFERENCES]: "internetReferences",
     [PID_TAG_IN_REPLY_TO_ID]: "inReplyToID",
     [PID_TAG_LIST_UNSUBSCRIBE]: "listUnsubscribe",
     [PID_TAG_ICON_INDEX]: "iconIndex",
     [PID_TAG_ITEM_TEMPORARY_FLAGS]: "itemTemporaryFlags",
+    [PID_TAG_ICALENDAR_END_TIME]: "iCalendarEndTime",
     [PID_TAG_ATTR_HIDDEN]: "attrHidden",
     [PID_TAG_ATTR_SYSTEM]: "attrSystem",
     [PID_TAG_ATTR_READONLY]: "attrReadonly",

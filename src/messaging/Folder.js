@@ -1,5 +1,5 @@
 import { PropertyContext } from "../ltp/PropertyContext.js";
-import { propertiesToObject } from "../util.js";
+import { propertiesToObject } from "../util/propertiesToObject.js";
 import * as Tags from "../ltp/Tags.js";
 
 export class Folder {

@@ -1,6 +1,6 @@
 import { NodeEntry } from "../nbr/NodeEntry.js";
 import { HeapNodePageMap } from "./HeapNodePageMap.js";
-import { h } from "../util.js";
+import { h } from "../util/util.js";
 
 export class HeapNode {
 
