@@ -33,6 +33,7 @@ export class PropertyContext extends BTreeOnHeap {
 
     static PTYPE_MULTIPLE_INTEGER32 = 0x1003;
     static PTYPE_MULTIPLE_STRING    = 0x101F;
+    static PTYPE_MULTIPLE_GUID      = 0x1048;
 
     /**
      * @param {{ data: DataView, blockOffsets: number[]}} data
@@ -117,6 +118,14 @@ export class PropertyContext extends BTreeOnHeap {
             return this.getItemByHID(record.dwValueHnid).getBigUint64(0, true);
         }
 
+        if (record.wPropType === PropertyContext.PTYPE_FLOATING32) {
+            return this.getItemByHID(record.dwValueHnid).getFloat32(0, true);
+        }
+
+        if (record.wPropType === PropertyContext.PTYPE_FLOATING64) {
+            return this.getItemByHID(record.dwValueHnid).getFloat64(0, true);;
+        }
+
         if (record.wPropType === PropertyContext.PTYPE_BOOLEAN) {
             return record.dwValueHnid > 0;
         }
@@ -179,6 +188,25 @@ export class PropertyContext extends BTreeOnHeap {
             }
 
             return [...new Uint32Array(buffer, byteOffset, byteLength/4)];
+        }
+
+        if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_GUID) {
+            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+
+            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
+                this.getItemByHID(record.dwValueHnid) :
+                this.#subNodeAccessor(record.dwValueHnid);
+
+            // const count = dv.getUint32(0, true);
+            // console.log(`Multiple GUID debug: dv.byteLength = ${dv.byteLength}`);
+
+            const out = [];
+            for (let start = 0; start < dv.byteLength; start += 16) {
+                const length = 16;
+                const guidDV = new DataView(dv.buffer, dv.byteOffset + start, length)
+                out.push(formatGuid(guidDV));
+            }
+            return out;
         }
 
         console.debug(`Unable to get data of type 0x${h(record.wPropType)}`);
