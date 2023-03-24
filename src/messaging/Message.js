@@ -3,6 +3,7 @@ import { Utf8ArrayToStr } from "../utf8.js";
 import { propertiesToObject } from "../util/propertiesToObject.js";
 import { arrayBufferFromDataView } from "../util/arrayBufferFromDataView.js";
 import * as Tags from "../ltp/Tags.js";
+import { spGetSubject } from "../util/spGetSubject.js";
 
 export class Message {
     #nid;
@@ -14,10 +15,9 @@ export class Message {
     // get nidParent () { return this.#node.nidParent; }
 
     get subject () {
-        // TODO: computed property
-        return /** @type {string} */(this.#pc.getValueByKey(Tags.PID_TAG_SUBJECT));
+        return spGetSubject(/** @type {string|undefined} */(this.#pc.getValueByKey(Tags.PID_TAG_SUBJECT))||"");
     }
-    get body () { return /** @type {string} */(this.#pc.getValueByKey(Tags.PID_TAG_BODY)); }
+    get body () { return /** @type {string|undefined} */(this.#pc.getValueByKey(Tags.PID_TAG_BODY)); }
     get bodyHTML () {
         const dv = this.#pc.getValueByKey(Tags.PID_TAG_BODY_HTML);
         if (dv instanceof DataView) {
