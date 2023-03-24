@@ -1,0 +1,4834 @@
+Message API (MAPI) definitions
+Microsoft Outlook MAPI definitions for the PFF and NK2 formats
+By Joachim Metz <forensics@hoffmannbv.nl> Hoffmann Investigations
+
+Summary
+The Microsoft (Office) Outlook Messaging API (MAPI) is used in multiple file formats.
+This document is intended as a working document for the NK2 and PFF specification. Which should allow existing Open Source forensic tooling to be able to process this file type.
+page
+Document information
+Author(s):	Joachim Metz <forensics@hoffmannbv.nl>
+Abstract:	This document contains information about the Personal Folder File format.
+Classification:	Public
+Keywords:	MAPI, Message API
+License
+Copyright (c)  2008-2009  Joachim Metz <forensics@hoffmannbv.nl>.
+Permission is granted to copy, distribute and/or modify this document under the terms of the GNU Free Documentation License, Version 1.1 or any later version published by the Free Software Foundation; with no Invariant Sections, with no Front-Cover Texts and with no Back-Cover Texts. A copy of the license is included in the section entitled "GNU Free Documentation License".
+Version
+Version	Author	Date	Comments
+0.0.1	J.B. Metz	January 29, 2009	Initial version based on PFF documentation.
+page
+Table of Contents
+1. Overview	1
+2. Data types	1
+2.1. Error code	3
+2.2. Array (multi) value types	3
+3. The property identifiers	4
+3.1. Reserved (0x0000)	5
+3.2. Message envelope properties (0x0001 – 0x0bff)	5
+3.3. Recipient properties (0x0c00 – 0x0dff)	13
+3.4. Non-transmittable message properties (0x0e00 – 0x0fff)	15
+3.5. Message content properties (0x1000 – 0x2fff)	19
+3.6. Common objects properties (0x3000 – 0x03ff)	22
+3.7. Message store properties (0x3400 - 0x35ff)	24
+3.8. Folder and address book container properties (0x3600 – 0x37ff)	25
+3.9. Attachment properties (0x3700 – 0x38ff)	28
+3.10. Address book properties (0x3900 – 0x39ff)	30
+3.11. Messaging user properties (0x3a00 – 0x3bff)	30
+3.12. Distribution list properties (0x3c00 – 0x3cff)	35
+3.13. Profile properties (0x3d00 – 0x3dff)	35
+3.14. Status object properties (0x3e00 – 0x3fff)	36
+3.15. Message envelope properties (0x4000 – 0x57ff)	41
+3.16. Recipient properties (0x5800 - 0x5fff)	44
+3.17. Non-transmittable message properties (0x6000 - 0x65ff)	45
+3.18. Non-transmittable properties (0x6600 – 0x67ff)	46
+3.19. Message content properties for custom message classes (0x6800 – 0x7bff)	59
+3.20. Non-transmittable properties for custom message classes (0x7c00 – 0x7fff)	62
+3.21. Named properties (0x8000 – 0xfffe)	63
+3.22. Special error value (0xffff)	94
+3.23. Named properties in the name-to-id map	94
+3.23.1. Class identifiers	94
+3.23.2. TODO	95
+3.23.3. Meeting named properties	95
+3.23.4. Address named properties	96
+3.23.5. Task named properties	99
+3.23.6. Appointment named properties	100
+3.23.7. Common named properties	103
+3.23.8. Log named properties	105
+3.23.9. Post RSS named properties	106
+3.23.10. Sharing named properties	106
+3.23.11. Note named properties	108
+3.23.12. Public strings named properties	109
+3.23.13. Internet headers named properties	111
+3.23.14. Attachment properties	112
+3.23.15. Unified messaging properties	113
+3.23.16. Other named properties	113
+4. MAPI data types	113
+4.1. The message type	113
+4.2. The recipient/sender entry identifier structure	114
+4.3. The recipient/sender entries structure	115
+4.4. The change key structure	116
+4.5. The change list structure	116
+4.6. The 0x859c structure	116
+4.7. The 0x36e4 structure	117
+4.8. The 0x686c structure	117
+4.9. The embedded object information reference record	117
+4.10. The folder information reference record	117
+5. Notes	118
+5.1. Other class identifiers	118
+Appendix A. References	119
+Appendix B. GNU Free Documentation License	119
+
+page
+page
+
+1.	Overview
+The Microsoft (Office) Outlook Messaging API (MAPI) is used in multiple file formats.
+It is known to be used in the following file formats:
+•	Nickfile (NK2)
+•	Personal Folder File (PST, OST, PAB)
+2.	Data types
+The MAPI defines property data types. These are identified by PT_. In this document the data types are referred to as value types.
+Value type	Identifier	Description
+0x0000	PT_UNSPECIFIED PT_UNKNOWN	Reserved for interface use (type is not important to caller)
+0x0001	PT_NULL	NULL (empty value)
+0x0002	PT_SHORT PT_I2	Integer 16-bit signed
+0x0003	PT_LONG
+PT_I4	Integer 32-bit signed
+0x0004	PT_FLOAT PT_R4	Floating point single precision (32-bit)
+0x0005	PT_DOUBLE PT_R8	Floating point double precision (64-bit)
+0x0006	PT_CURRENCY	Currency (64-bit)
+Currency is stored as:
+•	32-bit low part
+•	32-bit high part
+It contains a scaled integer representation of a decimal number with four digits to the right of the decimal point. For example, a stored value of 327500 represents a currency value of 32.7500.
+0x0007	PT_APPTIME	Application Time (64-bit)
+Application Time is a double precision floating point and contains the whole number part represents the number of days since December 30, 1899, and the fractional part represents the fraction of a day since midnight.
+Referred to as floating time?
+
+0x000a	PT_ERROR	Error value (32-bit)
+(what is the actual format definition?)
+0x000b	PT_BOOLEAN	Boolean (16-bit)
+0 == false, 0 != true
+
+Value type	Identifier	Description
+
+0x000d	PT_OBJECT	Embedded Object
+
+0x0014	PT_LONGLONG PT_I8	Integer 64-bit signed
+
+0x001e	PT_STRING8	(extended) ASCII or Single Byte Character (SBC) string
+The string in the file is not NULL-terminated by a
+\x00
+The string is formatted using the current code page.
+(Or is the code page stored somewhere in the PFF?)
+0x001f	PT_UNICODE	Unicode string
+The string uses UTF-16 little endian (LE) without the byte order mark (BOM)
+The string in the file is not NULL-terminated by a \x00\x00
+
+0x0040	PT_SYSTIME	Windows Filetime or System Time (64-bit) Filetime is stored as:
+•	32-bit low part
+•	32-bit high part
+It contains the number of 100ns periods since January 1, 1601
+
+0x0048	PT_CLSID	(OLE) GUID or Class identifier (128-bit) The GUID is stored as:
+•	Unsigned 32-bit Integer
+•	Unsigned 16-bit Integer
+•	Unsigned 16-bit Integer
+•	8 byte array
+
+0x00fb	PT_SVREID	Unknown
+
+0x00fd	PT_SRESTRICT	Unknown
+
+0x0102	PT_BINARY	Binary data
+
+0x1000	PT_MV_UNSPECIFIED	Array of unspecified values
+0x1001	PT_MV_NULL	Array of NULL values Not used by MAPI
+Value type	Identifier	Description
+0x1002	PT_MV_SHORT PT_MV_I2	Array of Integer 16-bit signed values
+0x1003	PT_MV_LONG PT_MV_I8	Array of Integer 32-bit signed values
+0x1004	PT_MV_FLOAT PT_MV_R4	Array of Floating point single precision (32-bit) values
+0x1005	PT_MV_DOUBLE PT_MV_R8	Array of Floating point double precision (64-bit) values
+0x1006	PT_MV_CURRENCY	Array of Currency values
+0x1007	PT_MV_APPTIME	Array of Application Time values
+
+0x100a	PT_MV_ERROR	Array of Error value (32-bit) values Not used by MAPI
+0x100b	PT_MV_BOOLEAN	Array of Boolean (16-bit) values Not used by MAPI
+
+0x100d	PT_MV_OBJECT	Array of Embedded Object values Not used by MAPI
+
+0x1014	PT_MV_LONGLONG PT_MV_I8	Array of Integer 64-bit signed values
+
+0x101e	PT_MV_STRING8	Array of (extended) ASCII or SBC string values
+0x101f	PT_MV_UNICODE	Array of Unicode (UTF-16 LE) string values
+
+0x1040	PT_MV_SYSTIME	Array of Windows Filetime (64-bit) values
+
+0x1048	PT_MV_CLSID	Array of GUID (Class identifier) values
+
+0x1102	PT_MV_BINARY	Array of Binary data value
+PT_ACTIONS and PT_SRESTRICTION?
+2.1.	Error code
+SCODE definition
+2.2.	Array (multi) value types
+The array (multi) value types consist of a variable size:
+offset	size	value	description
+0	4		The amount of elements
+4			(The element data)
+The array of strings:
+offset	size	value	description
+0	4		The amount of elements
+4	4	\x08\x00\x00\x00	Unknown (value separator?)
+8			(The element data)
+3.	The property identifiers
+The MAPI defines property identifiers/names. These are identified by PR_. The property type is a combination of the item type and the item value type.
+Transmittable properties are transferred with a message; nontransmittable properties are not transferred with a message. Nontransmittable properties usually contain information that is of value only to clients and service providers operating with the current session.
+Type range	Description
+0x0000	Reserved for the special value PR_NULL (reserved by MAPI)
+0x0001 – 0x0bff	Message envelope properties (defined by MAPI)
+0x0c00 – 0x0dff	Recipient properties (defined by MAPI)
+0x0e00 – 0x0fff	Non-transmittable message properties (defined by MAPI)
+0x1000 – 0x2fff	Message content properties (defined by MAPI)
+0x3000 - 0x33ff	Common object properties that appear on multiple objects (defined by
+MAPI)
+0x3400 - 0x35ff	Message store properties (defined by MAPI)
+0x3600 - 0x36ff	Folder and address book container properties (defined by MAPI)
+0x3700 – 0x38ff	Attachment properties (defined by MAPI)
+0x3900 – 0x39ff	Address book properties (defined by MAPI)
+0x3a00 – 0x3bff	Messaging user properties (defined by MAPI)
+0x3c00 – 0x3cff	Distribution list properties (defined by MAPI)
+0x3d00 – 0x3dff	Profile properties (defined by MAPI)
+0x3e00 – 0x3fff	Status object properties (defined by MAPI)
+0x4000 - 0x57ff	Message envelope properties (defined by transport providers)
+0x5800 – 0x5fff	Recipient properties (defined by transport and address book providers)
+0x6000 - 0x65ff	Non-transmittable message properties (defined by clients)
+0x6600 – 0x67ff	Non-transmittable properties (defined by a service provider) These properties can be visible or invisible to users.
+0x67f0 – 0x67ff	Secure profile properties.
+	These properties can be hidden and encrypted.
+0x6800 – 0x7bff	Message content properties for custom message classes (defined by creators of those classes)
+0x7c00 – 0x7fff	Non-transmittable properties for custom message classes (defined by creators of those classes)
+0x8000 – 0xfffe	Named properties (defined by clients and occasionally service providers)
+These properties are identified by name through the
+IMAPIProp::GetNamesFromIDs and IMAPIProp::GetIDsFromNames methods.
+0xffff	Special error value PROP_ID_INVALID (reserved by MAPI)
+The MAPI uses the _A and _W additives to signify if the property is an ASCII (single byte character) or a Wide (multiple byte character) string. This document does not bother with this distinction.
+3.1.	Reserved (0x0000)
+Item type	Value type	Identifier	Description
+0x0000		PR_NULL	NULL value
+3.2.	Message envelope properties (0x0001 – 0x0bff)
+Item type	Value type	Identifier	Description
+0x0001	0x0003	PR_ACKNOWLEDGE MENT_MODE	Acknowledgment mode Integer 32-bit signed
+
+0x0002	0x000b	PR_ALTERNATE_REC IPIENT_ALLOWED	Alternate recipient allowed Boolean
+	0x0102		Name-to-ID map Class Identifiers Contains the name-to-id map table class identifiers Binary data
+0x0003	0x0102	PR_AUTHORIZING_U SERS	Unknown
+Binary data
+	0x0102		Name-to-ID map Entries
+Contains the name-to-id map table entries Binary data
+0x0004	0x001e
+0x001f	PR_AUTO_FORWARD _COMMENT	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+	0x0102		Name-to-ID map Strings
+Contains the name-to-id map table strings Binary data
+0x0005	0x000b	PR_AUTO_FORWARD ED	Unknown Boolean
+0x0006	0x0102	PR_CONTENT_CONFI
+DENTIALITY_ALGOR ITHM_ID	Unknown Binary data
+0x0007	0x0102	PR_CONTENT_CORRE LATOR	Unknown Binary data
+0x0008	0x001e
+0x001f	PR_CONTENT_IDENTI FIER	Unknown
+ASCII or Unicode string
+0x0009	0x0003	PR_CONTENT_LENGT H	Unknown Integer 32-bit signed
+0x000a	0x000b	PR_CONTENT_RETUR N_REQUESTED	Unknown Boolean
+0x000b	0x0102	PR_CONVERSATION_ KEY	Unknown
+Binary data
+Contains a GUID?
+0x000c	0x0102	PR_CONVERSION_EIT S	Unknown Binary data
+0x000d	0x000b	PR_CONVERSION_WI
+TH_LOSS_PROHIBITE D	Unknown Boolean
+0x000e	0x0102	PR_CONVERTED_EIT S	Unknown
+Binary data
+0x000f	0x0040	PR_DEFERRED_DELI VERY_TIME	Unknown Filetime
+0x0010	0x0040	PR_DELIVER_TIME	Unknown
+Filetime
+0x0011	0x0003	PR_DISCARD_REASO N	Unknown Integer 32-bit signed
+0x0012	0x000b	PR_DISCLOSURE_OF_ RECIPIENTS	Unknown Boolean
+0x0013	0x0102	PR_DL_EXPANSION_ HISTORY	Unknown Binary data
+0x0014	0x000b	PR_DL_EXPANSION_ PROHIBITED	Unknown Boolean
+0x0015	0x0040	PR_EXPIRY_TIME	Unknown Filetime
+0x0016	0x000b	PR_IMPLICIT_CONVE	Unknown
+
+Item type	Value type	Identifier	Description
+		RSION_PROHIBITED	Boolean
+0x0017	0x0003	PR_IMPORTANCE	Importance
+Integer 32-bit signed
+			0 = Low
+			1 = Normal
+			2 = High
+0x0018	0x0102	PR_IPM_ID	Unknown Binary data
+0x0019	0x0040	PR_LATEST_DELIVER Y_TIME	Unknown
+Filetime
+0x001a	0x001e
+0x001f	PR_MESSAGE_CLASS	Message class
+ASCII or Unicode string
+0x001b	0x0102	PR_MESSAGE_DELIV ERY_ID	Unknown
+Binary data
+
+0x001e	0x0102	PR_MESSAGE_SECUR ITY_LABEL	Unknown Binary data
+0x001f	0x0102	PR_OBSOLETED_IPM S	Unknown
+Binary data
+0x0020	0x0102	PR_ORIGINALLY_INT
+ENDED_RECIPIENT_N AME	Unknown Binary data
+0x0021	0x0102	PR_ORIGINAL_EITS	Unknown Binary data
+0x0022	0x0102	PR_ORIGINATOR_CE RTIFICATE	Unknown
+Binary data
+0x0023	0x000b	PR_ORIGINATOR_DE
+LIVERY_REPORT_RE
+QUESTED	Originator delivery report requested
+			set if the sender wants a delivery report
+			from all recipients
+			0 = false
+			0 != true
+0x0024	0x0102	PR_ORIGINATOR_RE TURN_ADDRESS	Unknown Binary data
+0x0025	0x0102	PR_PARENT_KEY	Unknown
+Binary data
+0x0026	0x0003	PR_PRIORITY	Priority
+Integer 32-bit signed
+			-1 = NonUrgent
+			0 = Normal
+			1 = Urgent
+0x0027	0x0102	PR_ORIGIN_CHECK	Unknown Binary data
+0x0028	0x000b	PR_PROOF_OF_SUBM	Unknown
+
+Item type	Value type	Identifier	Description
+		ISSION_REQUESTED	Boolean
+0x0029	0x000b	PR_READ_RECEIPT_R EQUESTED	Read Receipt Requested Boolean
+			0 = false
+			0 != true
+0x002a	0x0040	PR_RECEIPT_TIME	Unknown
+Filetime
+0x002b	0x000b	PR_RECIPIENT_REAS
+SIGNMENT_PROHIBIT
+ED	Recipient Reassignment Prohibited Boolean
+			0 = false
+			0 != true
+0x002c	0x0102	PR_REDIRECTION_HI STORY	Unknown
+Binary data
+0x002d	0x0102	PR_RELATED_IPMS	Unknown Binary data
+0x002e	0x0003	PR_ORIGINAL_SENSI TIVITY	Original sensitivity Integer 32-bit signed
+			the sensitivity of the message before
+			being replied to or forwarded
+			0 = None
+			1 = Personal
+			2 = Private
+			3 = Company Confidential
+0x002f	0x001e
+0x001f	PR_LANGUAGES	Unknown ASCII or Unicode string
+0x0030	0x0040	PR_REPLY_TIME	Unknown
+Filetime
+0x0031	0x0102	PR_REPORT_TAG	Unknown Binary data
+0x0032	0x0040	PR_REPORT_TIME	Unknown
+Filetime
+0x0033	0x000b	PR_RETURNED_IPM	Unknown Boolean
+0x0034	0x0003	PR_SECURITY	Unknown
+Integer 32-bit signed
+	0x0102		Unknown data containing GUID
+			4 bytes unknown
+			16 bytes GUID
+			4 bytes unknown
+0x0035	0x000b	PR_INCOMPLETE_CO PY	Unknown Boolean
+0x0036	0x0003	PR_SENSITIVITY	Sensitivity
+Integer 32-bit signed
+sender's opinion of the sensitivity of an
+
+Item type	Value type	Identifier	Description
+			email
+			0 = None
+			1 = Personal
+			2 = Private
+			3 = Company Confidential
+0x0037	0x001e
+0x001f	PR_SUBJECT	Subject
+ASCII or Unicode string
+			The subject can start with 2 bytes of
+			control codes
+			0x01 0x01
+0x01 0x05
+0x0038	0x0102	PR_SUBJECT_IPM	Unknown
+Binary data
+0x0039	0x0040	PR_CLIENT_SUBMIT_ TIME	Client submit time Filetime
+0x003a	0x001e
+0x001f	PR_REPORT_NAME	Unknown
+ASCII or Unicode string
+0x003b	0x001e
+0x001f		Unknown ASCII or Unicode string
+	0x0102	PR_SENT_REPRESEN TING_SEARCH_KEY	Sent representing search key
+Binary data
+Contains ASCII NULL-terminated string
+0x003c	0x0102	PR_X400_CONTENT_T YPE	Unknown Binary data
+0x003d	0x001e
+0x001f	PR_SUBJECT_PREFIX	Unknown
+ASCII or Unicode string
+0x003e	0x0003	PR_NON_RECEIPT_RE ASON	Unknown Integer 32-bit signed
+0x003f	0x0102	PR_RECEIVED_BY_E NTRYID	Received by entry identifier
+Binary data
+Contains recipient/sender structure
+0x0040	0x001e
+0x001f	PR_RECEIVED_BY_N AME	Received by name
+ASCII or Unicode string
+0x0041	0x0102	PR_SENT_REPRESEN TING_ENTRYID	Sent representing entry identifier
+Binary data
+Contains recipient/sender structure
+0x0042	0x001e
+0x001f	PR_SENT_REPRESEN TING_NAME	Sent representing name ASCII or Unicode string
+0x0043	0x0102	PR_RCVD_REPRESEN TING_ENTRYID	Received representing entry identifier
+Binary data
+Contains recipient/sender structure
+0x0044	0x001e
+0x001f	PR_RCVD_REPRESEN TING_NAME	Received representing name ASCII or Unicode string
+
+
+Item type	Value type	Identifier	Description
+0x0045	0x0102	PR_REPORT_ENTRYI D	Unknown Binary data
+0x0046	0x0102	PR_READ_RECEIPT_E NTRYID	Unknown
+Binary data
+0x0047	0x0102	PR_MESSAGE_SUBMI SSION_ID	Unknown Binary data
+0x0048	0x0040	PR_PROVIDER_SUBM IT_TIME	Unknown
+Filetime
+0x0049	0x001e
+0x001f	PR_ORIGINAL_SUBJE CT	Unknown ASCII or Unicode string
+0x004a	0x000b	PR_DISC_VAL	Unknown Boolean
+0x004b	0x001e
+0x001f	PR_ORIG_MESSAGE_ CLASS	Unknown ASCII or Unicode string
+0x004c	0x0102	PR_ORIGINAL_AUTH OR_ENTRYID	Unknown
+Binary data
+0x004d	0x001e
+0x001f	PR_ORIGINAL_AUTH OR_NAME	Unknown ASCII or Unicode string
+0x004e	0x0040	PR_ORIGINAL_SUBMI T_TIME	Unknown
+Filetime
+0x004f	0x0102	PR_REPLY_RECIPIEN T_ENTRIES	Reply recipients entries
+Binary data
+Unknown contents
+0x0050	0x001e
+0x001f	PR_REPLY_RECIPIEN T_NAMES	Reply recipients name ASCII or Unicode string
+0x0051	0x0102	PR_RECEIVED_BY_SE ARCH_KEY	Received by search key
+Binary data
+Contains ASCII \x00 terminated string
+0x0052	0x0102	PR_RCVD_REPRESEN TING_SEARCH_KEY	Received representing search key
+Binary data
+Contains ASCII \x00 terminated string
+0x0053	0x0102	PR_READ_RECEIPT_S EARCH_KEY	Unknown
+Binary data
+0x0054	0x0102	PR_REPORT_SEARCH _KEY	Unknown Binary data
+0x0055	0x0040	PR_ORIGINAL_DELIV ERY_TIME	Unknown
+Filetime
+0x0056	0x0102	PR_ORIGINAL_AUTH OR_SEARCH_KEY	Unknown Binary data
+0x0057	0x000b	PR_MESSAGE_TO_ME	My address in TO field Boolean
+0x0058	0x000b	PR_MESSAGE_CC_ME	My address in CC field
+
+Item type	Value type	Identifier	Description
+			Boolean
+0x0059	0x001e
+0x001f	PR_MESSAGE_RECIP_ ME	Message addressed to me ASCII or Unicode string
+0x005a	0x001e
+0x001f	PR_ORIGINAL_SENDE R_NAME	Unknown
+ASCII or Unicode string
+0x005b	0x0102	PR_ORIGINAL_SENDE R_ENTRYID	Unknown Binary data
+0x005c	0x0102	PR_ORIGINAL_SENDE R_SEARCH_KEY	Unknown
+Binary data
+0x005d	0x001e
+0x001f	PR_ORIGINAL_SENT_
+REPRESENTING_NAM E	Unknown ASCII or Unicode string
+0x005e	0x0102	PR_ORIGINAL_SENT_
+REPRESENTING_ENT RYID	Unknown Binary data
+0x005f	0x0102	PR_ORIGINAL_SENT_
+REPRESENTING_SEA RCH_KEY	Unknown Binary data
+0x0060	0x0040	PR_START_DATE	Unknown Filetime
+0x0061	0x0040	PR_END_DATE	Unknown
+Filetime
+0x0062	0x0003	PR_OWNER_APPT_ID	Unknown Integer 32-bit signed
+0x0063	0x000b	PR_RESPONSE_REQU ESTED	Response requested Boolean
+0x0064	0x001e
+0x001f	PR_SENT_REPRESEN TING_ADDRTYPE	Sent representing address type
+ASCII or Unicode string
+Known values are SMTP and EX
+(Exchange)
+0x0065	0x001e
+0x001f	PR_SENT_REPRESEN
+TING_EMAIL_ADDRE SS	Sent representing e-mail address ASCII or Unicode string
+0x0066	0x001e
+0x001f	PR_ORIGINAL_SENDE R_ADDRTYPE	Unknown
+ASCII or Unicode string
+0x0067	0x001e
+0x001f	PR_ORIGINAL_SENDE R_EMAIL_ADDRESS	Unknown ASCII or Unicode string
+0x0068	0x001e
+0x001f	PR_ORIGINAL_SENT_
+REPRESENTING_ADD RTYPE	Unknown
+ASCII or Unicode string
+0x0069	0x001e
+0x001f	PR_ORIGINAL_SENT_
+REPRESENTING_EMA IL_ADDRESS	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+
+0x0070	0x001e
+0x001f	PR_CONVERSATION_ TOPIC	Conversation topic
+ASCII or Unicode string
+This is basically the subject from which
+Fwd:, Re, etc. has been removed
+0x0071	0x0102	PR_CONVERSATION_ INDEX	Conversation index Binary data
+0x0072	0x001e
+0x001f	PR_ORIGINAL_DISPL AY_BCC	Original display BCC
+ASCII or Unicode string
+0x0073	0x001e
+0x001f	PR_ORIGINAL_DISPL AY_CC	Original display CC
+ASCII or Unicode string
+0x0074	0x001e
+0x001f	PR_ORIGINAL_DISPL AY_TO	Original display TO
+ASCII or Unicode string
+0x0075	0x001e
+0x001f	PR_RECEIVED_BY_A DDRTYPE	Received by address type
+ASCII or Unicode string
+Known values are SMTP and EX
+(Exchange)
+0x0076	0x001e
+0x001f	PR_RECEIVED_BY_E MAIL_ADDRESS	Received by e-mail address ASCII or Unicode string
+0x0077	0x001e
+0x001f	PR_RCVD_REPRESEN TING_ADDRTYPE	Received representing address type
+ASCII or Unicode string
+Known values are SMTP and EX
+(Exchange)
+0x0078	0x001e
+0x001f	PR_RCVD_REPRESEN
+TING_EMAIL_ADDRE SS	Received representing e-mail address ASCII or Unicode string
+0x0079	0x001e
+0x001f	PR_ORIGINAL_AUTH OR_ADDRTYPE	Unknown ASCII or Unicode string
+0x007a	0x001e
+0x001f	PR_ORIGINAL_AUTH OR_EMAIL_ADDRESS	Unknown
+ASCII or Unicode string
+0x007b	0x001e
+0x001f	PR_ORIGINALLY_INT
+ENDED_RECIP_ADDR TYPE	Unknown ASCII or Unicode string
+0x007c	0x001e
+0x001f	PR_ORIGINALLY_INT
+ENDED_RECIP_EMAI L_ADDRESS	Unknown ASCII or Unicode string
+0x007d	0x001e
+0x001f	PR_TRANSPORT_MES SAGE_HEADERS	Transport message headers
+ASCII or Unicode string
+These contain the SMTP e-mail headers.
+0x007e	0x0102	PR_DELEGATION	Unknown Binary data
+0x007f	0x0102	PR_TNEF_CORRELAT ION_KEY	Unknown
+Binary data
+Item type	Value type	Identifier	Description
+			Contains a single byte 0x00
+0x0080			Unknown
+			ASCII string
+			“displayed”
+			found in a message delivery report item
+0x0081
+			Unknown
+			ASCII string
+			“automatic-action/MDN-sent-
+			automatically”
+			found in a message delivery report item
+3.3.	Recipient properties (0x0c00 – 0x0dff)
+Item type	Value type	Identifier	Description
+0x0c00	0x0102	PR_CONTENT_INTEG RITY_CHECK	Unknown Binary data
+0x0c01	0x0003	PR_EXPLICIT_CONV ERSION	Unknown
+Integer 32-bit signed
+0x0c02	0x000b	PR_IPM_RETURN_RE QUESTED	Unknown Boolean
+0x0c03	0x0102	PR_MESSAGE_TOKE N	Unknown
+Binary data
+0x0c04	0x0003	PR_NDR_REASON_C ODE	Unknown Integer 32-bit signed
+0x0c05	0x0003	PR_NDR_DIAG_COD E	Unknown
+Integer 32-bit signed
+0x0c06	0x000b	PR_NON_RECEIPT_N
+OTIFICATION_REQU ESTED	Unknown Boolean
+0x0c07	0x0003	PR_DELIVERY_POIN T	Unknown Integer 32-bit signed
+0x0c08	0x000b	PR_ORIGINATOR_N
+ON_DELIVERY_REP
+ORT_REQUESTED	Unknown Boolean
+0x0c09	0x0102	PR_ORIGINATOR_RE
+QUESTED_ALTERNA TE_RECIPIENT	Unknown
+Binary data
+0x0c0a	0x000b	PR_PHYSICAL_DELI
+VERY_BUREAU_FAX _DELIVERY	Unknown Boolean
+0x0c0b	0x0003	PR_PHYSICAL_DELI VERY_MODE	Unknown
+Integer 32-bit signed
+0x0c0c	0x0003	PR_PHYSICAL_DELI	Unknown
+
+Item type	Value type	Identifier	Description
+		VERY_REPORT_REQ UEST	Integer 32-bit signed
+0x0c0d	0x0102	PR_PHYSICAL_FOR WARDING_ADDRESS	Unknown
+Binary data
+0x0c0e	0x000b	PR_PHYSICAL_FOR
+WARDING_ADDRESS _REQUESTED	Unknown Boolean
+0x0c0f	0x000b	PR_PHYSICAL_FOR
+WARDING_PROHIBI TED	Unknown Boolean
+0x0c10	0x0102	PR_PHYSICAL_REND ITION_ATTRIBUTES	Unknown Binary data
+0x0c11	0x0102	PR_PROOF_OF_DELI VERY	Unknown
+Binary data
+0x0c12	0x000b	PR_PROOF_OF_DELI VERY_REQUESTED	Unknown Boolean
+0x0c13	0x0102	PR_RECIPIENT_CERT IFICATE	Unknown
+Binary data
+0x0c14	0x001e
+0x001f	PR_RECIPIENT_NUM BER_FOR_ADVICE	Unknown ASCII or Unicode string
+0x0c15	0x0003	PR_RECIPIENT_TYPE	Unknown
+Integer 32-bit signed
+0x0c16	0x0003	PR_REGISTERED_M AIL_TYPE	Unknown Integer 32-bit signed
+0x0c17	0x000b	PR_REPLY_REQUEST ED	Reply requested Boolean
+0x0c18	0x0003	PR_REQUESTED_DE LIVERY_METHOD	Unknown Integer 32-bit signed
+0x0c19	0x0102	PR_SENDER_ENTRYI D	Sender entry identifier
+Binary data
+Contains recipient/sender structure
+0x0c1a	0x001e
+0x001f	PR_SENDER_NAME	Sender name
+ASCII or Unicode string
+0x0c1b	0x001e
+0x001f	PR_SUPPLEMENTAR Y_INFO	Unknown ASCII or Unicode string
+0x0c1c	0x0003	PR_TYPE_OF_MTS_U SER	Unknown
+Integer 32-bit signed
+0x0c1d	0x0102	PR_SENDER_SEARC H_KEY	Sender search key
+Binary data
+Contains ASCII NULL-terminated string
+0x0c1e	0x001e
+0x001f	PR_SENDER_ADDRT YPE	Sender address type
+ASCII or Unicode string
+Item type	Value type	Identifier	Description
+			Known values are SMTP and EX (Exchange)
+0x0c1f	0x001e
+0x001f	PR_SENDER_EMAIL_ ADDRESS	Sender e-mail address
+ASCII or Unicode string
+0x0c20	0x0003	PR_NDR_STATUS_C ODE	Unknown Integer 32-bit signed
+3.4.	Non-transmittable message properties (0x0e00 – 0x0fff)
+Item type	Value type	Identifier	Description
+0x0e00	0x0014	PR_CURRENT_VERSI ON	Unknown Integer 64-bit signed
+0x0e01	0x000b	PR_DELETE_AFTER_ SUBMIT	Delete after submit Boolean
+0x0e02	0x001e
+0x001f	PR_DISPLAY_BCC	Display BCC
+ASCII or Unicode string
+0x0e03	0x001e
+0x001f	PR_DISPLAY_CC	Display CC
+ASCII or Unicode string
+0x0e04	0x001e
+0x001f	PR_DISPLAY_TO	Display TO
+ASCII or Unicode string
+0x0e04	0x001e
+0x001f	PR_PARENT_DISPLA Y	Unknown
+ASCII or Unicode string
+0x0e06	0x0040	PR_MESSAGE_DELIV ERY_TIME	Message delivery time Filetime
+0x0e07	0x0003	PR_MESSAGE_FLAGS	Message flags
+Integer 32-bit signed
+0x01	Read
+0x02	Unmodified
+0x04	Submit
+0x08	Unsent
+0x10	Has Attachments
+0x20	From Me
+0x40	Associated
+0x80	Resend
+			0x100	RN Pending
+			0x200	NRN Pending
+0x0e08	0x0003	PR_MESSAGE_SIZE	Message size
+Integer 32-bit signed
+	0x0014	PR_MESSAGE_SIZE_E XTENDED	Message size
+Integer 64-bit signed
+0x0e09	0x0102	PR_PARENT_ENTRYI D	Unknown Binary data
+
+Item type	Value type	Identifier	Description
+0x0e0a	0x0102	PR_SENTMAIL_ENTR YID	Sentmail entry identifier Binary data
+0x0e0b	0x000b	PR_CORRELATE	Unknown Boolean
+0x0e0c	0x0102	PR_CORRELATE_MTS ID	Unknown Binary data
+0x0e0e	0x000b	PR_DISCRETE_VALU ES	Unknown Boolean
+0x0e0f	0x000b	PR_RESPONSIBILITY	Unknown Boolean
+0x0e10	0x0003	PR_SPOOLER_STATU S	Unknown
+Integer 32-bit signed
+0x0e11	0x0003	PR_TRANSPORT_STA TUS	Unknown Integer 32-bit signed
+0x0e12	0x000d	PR_MESSAGE_RECIPI ENTS	Unknown
+Embedded object
+0x0e13	0x000d	PR_MESSAGE_ATTA CHMENTS	Unknown
+Embedded object
+0x0e14	0x0003	PR_SUBMIT_FLAGS	Unknown
+Integer 32-bit signed
+0x0e15	0x0003	PR_RECIPIENT_STAT US	Unknown Integer 32-bit signed
+0x0e16	0x0003	PR_TRANSPORT_KEY	Unknown
+Integer 32-bit signed
+0x0e17	0x0003	PR_MSG_STATUS	Unknown Integer 32-bit signed
+0x0e18	0x0003	PR_MESSAGE_DOWN LOAD_TIME	Unknown
+Integer 32-bit signed
+0x0e19	0x0014	PR_CREATION_VERSI ON	Unknown Integer 64-bit signed
+0x0e1a	0x0014	PR_MODIFY_VERSIO N	Unknown
+Integer 64-bit signed
+0x0e1b	0x000b	PR_HASATTACH	Unknown Boolean
+0x0e1c	0x0003	PR_BODY_CRC	Unknown
+Integer 32-bit signed
+0x0e1d	0x001e
+0x001f	PR_NORMALIZED_SU BJECT	Unknown ASCII or Unicode string
+
+0x0e1f	0x000b	PR_RTF_IN_SYNC	Compressed RTF in Sync Boolean
+
+Item type	Value type	Identifier	Description
+0x0e20	0x0003	PR_ATTACH_SIZE	Attachment size
+Integer 32-bit signed
+0x0e21	0x0003	PR_ATTACH_NUM	Attachment number Integer 32-bit signed
+0x0e22	0x000b	PR_PREPROCESS	Unknown Boolean
+0x0e23	0x0003	PR_INTERNET_ARTIC LE_NUMBER	Internet article number Integer 32-bit signed
+0x0e24	0x001e
+0x001f	PR_NEWSGROUP_NA ME	Unknown ASCII or Unicode string
+0x0e25	0x0102	PR_ORIGINATING_M TA_CERTIFICATE	Unknown
+Binary data
+0x0e26	0x0102	PR_PROOF_OF_SUBM ISSION	Unknown Binary data
+0x0e27	0x0102	PR_NT_SECURITY_D ESCRIPTOR	Unknown
+Binary data
+
+0x0e2a	0x000b		Unknown Boolean
+
+0x0e30	0x0102		Unknown
+Binary data
+			Contains a GUID which maps to the
+			contents of the 9c table
+
+0x0e33	0x0014		Unknown Integer 64-bit signed
+0x0e34	0x0102		Unknown
+Binary data
+Contains a GUID and 2 4 byte values
+
+0x0e38	0x0003		Unknown
+			32-bit integer
+
+0x0e58	0x0102	PR_CREATOR_SID	Creator SID
+Binary data
+Size of 28 bytes
+0x0e59	0x0102	PR_LAST_MODIFIER_ SID	Last modifier SID
+Binary data
+Size of 28 bytes
+
+
+Item type	Value type	Identifier	Description
+0x0e5e	0x0048	PR_MIME_HANDLER_ CLASSIDS	Unknown GUID
+
+0x0e61	0x0003	PR_URL_COMP_NAM E_POSTFIX	Unknown
+Integer 32-bit signed
+0x0e62	0x000b	PR_URL_COMP_NAM E_SET	Unknown Boolean
+0x0e63	0x0003	PR_SUBFOLDER_CT	Unknown
+Integer 32-bit signed
+0x0e64	0x0003	PR_DELETED_SUBFO LDER_CT	Unknown Integer 32-bit signed
+
+0x0e66	0x0040	PR_DELETE_TIME	Unknown
+Filetime
+0x0e67	0x0102	PR_AGE_LIMIT	Unknown Binary data
+
+0x0e79	0x0003	PR_TRUST_SENDER	Unknown
+Integer 32-bit signed
+
+0x0e96	0x0102	PR_ATTACH_VIRUS_ SCAN_INFO	Unknown Binary data
+
+0x0ff4	0x0003	PR_ACCESS	Unknown
+Integer 32-bit signed
+0x0ff5	0x0003	PR_ROW_TYPE	Unknown Integer 32-bit signed
+0x0ff6	0x0003	PR_INSTANCE_KEY	Unknown
+Integer 32-bit signed
+0x0ff7	0x0003	PR_ACCESS_LEVEL	Unknown Integer 32-bit signed
+0x0ff8	0x0102	PR_MAPPING_SIGNA TURE	Unknown
+Binary data
+0x0ff9	0x0102	PR_RECORD_KEY	Record key
+Binary data
+Contains a GUID
+0x0ffa	0x0102	PR_STORE_RECORD_ KEY	Unknown Binary data
+0x0ffb	0x0102	PR_STORE_ENTRYID	Unknown
+Binary data
+0x0ffc	0x0102	PR_MINI_ICON	Unknown
+Item type	Value type	Identifier	Description
+			Binary data
+0x0ffd	0x0102	PR_ICON	Unknown Binary data
+0x0ffe	0x0003	PR_OBJECT_TYPE	Unknown
+Integer 32-bit signed
+0x0fff	0x0102	PR_ENTRYID	Unknown Binary data
+3.5.	Message content properties (0x1000 – 0x2fff)
+Item type	Value type	Identifier	Description
+0x1000	0x001e
+0x001f	PR_BODY	Plain Text Email Body ASCII or Unicode string
+0x1001	0x001e
+0x001f	PR_REPORT_TEXT	Unknown
+ASCII or Unicode string
+0x1002	0x0102	PR_ORIGINATOR_A
+ND_DL_EXPANSION_ HISTORY	Unknown Binary data
+0x1003	0x0102	PR_REPORTING_DL_ NAME	Unknown Binary data
+0x1004	0x0102	PR_REPORTING_MT A_CERTIFICATE	Unknown
+Binary data
+
+0x1006	0x0003	PR_RTF_SYNC_BOD Y_CRC	RTF Sync Body CRC Integer 32-bit signed
+0x1007	0x0003	PR_RTF_SYNC_BOD Y_COUNT	RTF Sync Body character count Integer 32-bit signed
+0x1008	0x001e
+0x001f	PR_RTF_SYNC_BOD Y_TAG	RTF Sync body tag
+ASCII or Unicode string
+0x1009	0x0102	PR_RTF_COMPRESS ED	RTF Compressed body
+Binary data
+Contains LZFu compressed data
+0x1010	0x0003	PR_RTF_SYNC_PREF IX_COUNT	RTF whitespace prefix count Integer 32-bit signed
+0x1011	0x0003	PR_RTF_SYNC_TRAI LING_COUNT	RTF whitespace tailing count Integer 32-bit signed
+0x1012	0x0102	PR_ORIGINALLY_IN
+TENDED_RECIP_ENT RYID	Unknown
+Binary data
+0x1013	0x001e
+0x001f	PR_BODY_HTML	HTML Email Body
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+	0x0102	PR_HTML	HTML Email Body Binary data
+			This data is probably in 7-bit ASCII
+			encoding extended characters are
+			formatted in HTML encoding without a
+			NUL-byte
+
+0x1030	0x001e
+0x001f	PR_INTERNET_APPR OVED	Unknown
+ASCII or Unicode string
+0x1031	0x001e
+0x001f	PR_INTERNET_CONT ROL	Unknown ASCII or Unicode string
+0x1032	0x001e
+0x001f	PR_INTERNET_DIST RIBUTION	Unknown
+ASCII or Unicode string
+0x1033	0x001e
+0x001f	PR_INTERNET_FOLL OWUP_TO	Unknown ASCII or Unicode string
+0x1034	0x0003	PR_INTERNET_LINE S	Unknown
+Integer 32-bit signed
+0x1035	0x001e
+0x001f	PR_INTERNET_MESS AGE_ID	Message ID
+ASCII or Unicode string
+0x1036	0x001e
+0x001f	PR_INTERNET_NEW SGROUPS	Unknown
+ASCII or Unicode string
+0x1037	0x001e
+0x001f	PR_INTERNET_ORG ANIZATION	Unknown ASCII or Unicode string
+0x1038	0x001e
+0x001f	PR_INTERNET_NNTP _PATH	Unknown
+ASCII or Unicode string
+0x1039	0x001e
+0x001f	PR_INTERNET_REFE RENCES	Unknown ASCII or Unicode string
+0x103a	0x001e
+0x001f	PR_SUPERSEDES	Unknown
+ASCII or Unicode string
+0x103b	0x0102	PR_POST_FOLDER_E NTRIES	Unknown Binary data
+0x103c	0x001e
+0x001f	PR_POST_FOLDER_N AMES	Unknown
+ASCII or Unicode string
+0x103d	0x0102	PR_POST_REPLY_FO LDER_ENTRIES	Unknown Binary data
+0x103e	0x001e
+0x001f	PR_POST_REPLY_FO LDER_NAMES	Unknown
+ASCII or Unicode string
+0x103f	0x0102	PR_POST_REPLY_DE NIED	Unknown Binary data
+
+0x1040	0x001e
+0x001f	PR_NNTP_XREF	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x1041	0x001e
+0x001f	PR_INTERNET_PREC EDENCE	Unknown ASCII or Unicode string
+0x1042	0x001e
+0x001f	PR_IN_REPLY_TO_ID	In-Reply-To
+ASCII or Unicode string
+0x1043	0x001e
+0x001f	PR_LIST_HELP	Unknown ASCII or Unicode string
+0x1044	0x001e
+0x001f	PR_LIST_SUBSCRIBE	Unknown
+ASCII or Unicode string
+0x1045	0x001e
+0x001f	PR_LIST_UNSUBSCR IBE	Unknown ASCII or Unicode string
+0x1046	0x001e
+0x001f		Return Path
+ASCII or Unicode string
+
+0x1080	0x0003	PR_ICON_INDEX	Unknown Integer 32-bit signed
+0x1081	0x0003	PR_ACTION_FLAG	Unknown
+Integer 32-bit signed
+0x1082	0x0040	PR_ACTION_DATE	Unknown Filetime
+
+0x1090	0x0003	PR_FLAG_STATUS	Unknown
+Integer 32-bit signed
+0x1091	0x0040	PR_FLAG_COMPLET E	Unknown Filetime
+
+0x10c0	0x0102	PR_SMTP_TEMP_TBL _DATA	Unknown
+Binary data
+0x10c1	0x0003	PR_SMTP_TEMP_TBL _DATA_2	Unknown Integer 32-bit signed
+0x10c2	0x0102	PR_SMTP_TEMP_TBL _DATA_3	Unknown
+Binary data
+0x10c3	0x0040	PR_CAL_START_TIM E	Unknown Filetime
+0x10c4	0x0040	PR_CAL_END_TIME	Unknown
+Filetime
+0x10c5	0x0040	PR_CAL_RECURRIN G_ID	Unknown Filetime
+0x10c6	0x001e
+0x001f	PR_DAV_SUBMIT_D ATA	Unknown
+ASCII or Unicode string
+0x10c7	0x0003	PR_CDO_EXPANSIO N_INDEX	Unknown Integer 32-bit signed
+Item type	Value type	Identifier	Description
+0x10c8	0x0102	PR_IFS_INTERNAL_ DATA	Unknown Binary data
+
+0x10ca	0x0040	PR_CAL_REMINDER _NEXT_TIME	Unknown
+Filetime
+
+0x10f1	0x001e
+0x001f	PR_OWA_URL	Unknown ASCII or Unicode string
+0x10f2	0x000b	PR_DISABLE_FULL_ FIDELITY	Unknown Boolean
+0x10f3	0x001e
+0x001f	PR_URL_COMP_NAM E	E-Mail EML filename
+ASCII or Unicode string
+Contains the .eml file name
+0x10f4	0x000b	PR_ATTR_HIDDEN	Unknown Boolean
+0x10f5	0x000b	PR_ATTR_SYSTEM	Unknown Boolean
+0x10f6	0x000b	PR_ATTR_READONL Y	Unknown Boolean
+
+0x1100	0x0102	PR_P1_CONTENT	Unknown
+Binary data
+0x1101	0x0102	PR_P1_CONTENT_TY PE	Unknown Binary data
+3.6.	Common objects properties (0x3000 – 0x03ff)
+Item type	Value type	Identifier	Description
+0x3000	0x0003	PR_ROWID	Unknown Integer 32-bit signed
+0x3001	0x001e
+0x001f	PR_DISPLAY_NAME	Display name
+ASCII string or Unicode string
+0x3002	0x001e
+0x001f	PR_ADDRTYPE	Address type
+ASCII string or Unicode string
+Known values are SMTP and EX
+(Exchange)
+0x3003	0x001e
+0x001f	PR_EMAIL_ADDRES S	E-mail address
+ASCII string or Unicode string
+0x3004	0x001e
+0x001f	PR_COMMENT	Comment ASCII string or Unicode string
+0x3005	0x0003	PR_DEPTH	Unknown
+
+Item type	Value type	Identifier	Description
+			Integer 32-bit signed
+0x3006	0x001e
+0x001f	PR_PROVIDER_DISP LAY	Unknown ASCII string or Unicode string
+0x3007	0x0040	PR_CREATION_TIME	Creation time Filetime
+0x3008	0x0040	PR_LAST_MODIFICA TION_TIME	Modification time Filetime
+0x3009	0x0003	PR_RESOURCE_FLA GS	Unknown
+Integer 32-bit signed
+0x300a	0x001e
+0x001f	PR_PROVIDER_DLL_ NAME	Unknown ASCII string or Unicode string
+0x300b	0x0102	PR_SEARCH_KEY	Search key
+Binary data
+Contains a GUID?
+0x300c	0x0102	PR_PROVIDER_UID	Unknown
+Binary data
+0x300d	0x0003	PR_PROVIDER_ORDI NAL	Unknown Integer 32-bit signed
+
+0x3301	0x001e
+0x001f	PR_FORM_VERSION	Unknown
+ASCII string or Unicode string
+0x3302	0x0048	PR_FORM_CLSID	Unknown GUID
+0x3303	0x001e
+0x001f	PR_FORM_CONTAC T_NAME	Unknown
+ASCII string or Unicode string
+0x3304	0x001e
+0x001f	PR_FORM_CATEGO RY	Unknown ASCII string or Unicode string
+0x3305	0x001e
+0x001f	PR_FORM_CATEGO RY_SUB	Unknown
+ASCII string or Unicode string
+0x3306	0x1003	PR_FORM_HOST_M AP	Unknown Array of Integer 32-bit signed values
+0x3307	0x000b	PR_FORM_HIDDEN	Unknown Boolean
+0x3308	0x001e
+0x001f	PR_FORM_DESIGNE R_NAME	Unknown ASCII string or Unicode string
+0x3309	0x0048	PR_FORM_DESIGNE R_GUID	Unknown GUID
+0x330a	0x0003	PR_FORM_MESSAGE _BEHAVIOR	Unknown Integer 32-bit signed
+3.7.	Message store properties (0x3400 - 0x35ff)
+Item type	Value type	Identifier	Description
+0x3400	0x000b	PR_DEFAULT_STOR E	Unknown Boolean
+
+0x340d	0x0003	PR_STORE_SUPPOR T_MASK	Unknown Integer 32-bit signed
+0x340e	0x0003	PR_STORE_STATE	Unknown
+Integer 32-bit signed
+
+0x3410	0x0102	PR_IPM_SUBTREE_S EARCH_KEY	Unknown Binary data
+0x3411	0x0102	PR_IPM_OUTBOX_S EARCH_KEY	Unknown
+Binary data
+0x3412	0x0102	PR_IPM_WASTEBAS KET_SEARCH_KEY	Unknown Binary data
+0x3413	0x0102	PR_IPM_SENTMAIL_ SEARCH_KEY	Unknown
+Binary data
+0x3414	0x0102	PR_MDB_PROVIDER	Unknown Binary data
+0x3415	0x000d	PR_RECEIVE_FOLDE R_SETTINGS	Unknown
+Embedded object
+0x3416	0x0102		Unknown
+Binary data
+Contains Folder information reference to
+“ItemProcSearch”
+
+0x35df	0x0003	PR_VALID_FOLDER _MASK	Valid folder mask
+Integer 32-bit signed
+			States which folders are valid for this
+			message store
+			0x01 FOLDER_IPM_SUBTREE_VALID
+			0x02 FOLDER_IPM_INBOX_VALID
+			0x04 FOLDER_IPM_OUTBOX_VALID
+			0x08
+			FOLDER_IPM_WASTEBOX_VALID
+			0x10
+			FOLDER_IPM_SENTMAIL_VALID
+			0x20 FOLDER_VIEWS_VALID
+			0x40
+			FOLDER_COMMON_VIEWS_VALID
+			0x80 FOLDER_FINDER_VALID
+0x35e0	0x0102	PR_IPM_SUBTREE_E NTRYID	Subtree entry identifier Binary data
+Item type	Value type	Identifier	Description
+			Contains folder information reference to "Top of Personal Folder"
+
+0x35e2	0x0102	PR_IPM_OUTBOX_E NTRYID	Outbox entry identifier
+Binary data
+Contains folder information reference to “Outbox”
+0x35e3	0x0102	PR_IPM_WASTEBAS KET_ENTRYID	Wastebasket entry identifier
+Binary data
+Contains folder information reference to
+"Deleted Items"
+0x35e4	0x0102	PR_IPM_SENTMAIL_ ENTRYID	Sentmail entry identifier
+Binary data
+Contains folder information reference to “Sent Items”
+0x35e5	0x0102	PR_VIEWS_ENTRYI D	Views entry identifier
+Binary data
+Contains folder information reference to
+“IPM_VIEWS”
+0x35e6	0x0102	PR_COMMON_VIEW S_ENTRYID	Common views entry identifier
+Binary data
+Contains folder information reference to
+“IPM_COMMON_VIEWS”
+0x35e7	0x0102	PR_FINDER_ENTRYI D	Finder entry identifier
+Binary data
+Contains folder information reference to "Search Root"
+3.8.	Folder and address book container properties (0x3600 – 0x37ff)
+Item type	Value type	Identifier	Description
+0x3600	0x0003	PR_CONTAINER_FL AGS	Unknown Integer 32-bit signed
+0x3601	0x0003	PR_FOLDER_TYPE	Unknown
+Integer 32-bit signed
+0x3602	0x0003	PR_CONTENT_COUN T	Amount of content items Integer 32-bit signed
+0x3603	0x0003	PR_CONTENT_UNRE AD	Amount of unread content items Integer 32-bit signed
+0x3604	0x000d	PR_CREATE_TEMPL ATES	Unknown
+Embedded object
+0x3605	0x000d	PR_DETAILS_TABLE	Unknown
+Embedded object
+
+Item type	Value type	Identifier	Description
+
+0x3607	0x000d	PR_SEARCH	Unknown
+Embedded object
+
+0x3609	0x000b	PR_SELECTABLE	Unknown Boolean
+0x360a	0x000b	PR_SUBFOLDERS	Has sub folders Boolean
+0x360b	0x0003	PR_STATUS	Unknown
+Integer 32-bit signed
+0x360c	0x001e
+0x001f	PR_ANR	Unknown ASCII string or Unicode string
+0x360d	0x0003	PR_CONTENTS_SOR T_ORDER	Unknown
+Integer 32-bit signed
+0x360e	0x000d	PR_CONTAINER_HIE RARCHY	Unknown
+Embedded object
+0x360f	0x000d	PR_CONTAINER_CO NTENTS	Unknown
+Embedded object
+0x3610	0x000d	PR_FOLDER_ASSOCI ATED_CONTENTS	Unknown
+Embedded object
+0x3611	0x0102	PR_DEF_CREATE_D L	Unknown
+Binary data
+0x3612	0x0102	PR_DEF_CREATE_M AILUSER	Unknown Binary data
+0x3613	0x001e
+0x001f	PR_CONTAINER_CL ASS	Container class
+ASCII or Unicode string
+			“IPF.Note” => e-mail items
+			“IPF.Appointment” => Agenda items
+			“IPF.Contact” => Contacts
+			“IPF.Journal” => Journal
+			“IPF.StickyNote” => Note
+			“IPF.Task” => Tasks
+			"Outlook.ItemProcessor" => ???
+0x3614	0x0014	PR_CONTAINER_MO DIFY_VERSION	Unknown Integer 64-bit signed
+0x3615	0x0102	PR_AB_PROVIDER_I D	Unknown
+Binary data
+0x3616	0x0102	PR_DEFAULT_VIEW _ENTRYID	Unknown Binary data
+0x3617	0x0003	PR_ASSOC_CONTEN T_COUNT	Associate content count Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+
+0x361c	0x0102	PR_PACKED_NAME_ PROPS	Unknown
+Binary data
+Contains references to schema
+
+0x36d0	0x0102	PR_IPM_APPOINTM ENT_ENTRYID	Unknown
+Binary data
+Contains folder information reference to “Agenda”
+0x36d1	0x0102	PR_IPM_CONTACT_ ENTRYID	Unknown
+Binary data
+Contains folder information reference to “Contacts”
+0x36d2	0x0102	PR_IPM_JOURNAL_E NTRYID	Unknown
+Binary data
+Contains folder information reference to “Journal”
+0x36d3	0x0102	PR_IPM_NOTE_ENT RYID	Unknown
+Binary data
+Contains folder information reference to “Notes”
+0x36d4	0x0102	PR_IPM_TASK_ENT RYID	Unknown
+Binary data
+Contains folder information reference to “Tasks”
+0x36d5	0x0102	PR_REMINDERS_ON LINE_ENTRYID	Unknown
+Binary data
+Contains folder information reference to
+“Online Reminders”
+0x36d6	0x0102	PR_REMINDERS_OF FLINE_ENTRYID	Unknown
+Binary data
+Contains folder information reference to
+“Offline Reminders”
+0x36d7	0x0102	PR_IPM_DRAFTS_EN TRYID	Unknown
+Binary data
+Contains folder information reference to “Drafts”
+0x36d8	0x1102	PR_OUTLOOK_2003_ ENTRYIDS	Unknown Array of Binary data values
+
+0x36da	0x0102		Unknown
+Binary data
+01 04 00 00 10 00
+
+Item type	Value type	Identifier	Description
+0x36df	0x0102	PR_FOLDER_WEBVI EWINFO	Unknown Binary data
+
+0x36e0	0x0102	PR_FOLDER_XVIEW INFO_E	Unknown
+Binary data
+0x36e1	0x0003	PR_FOLDER_VIEWS _ONLY	Unknown Integer 32-bit signed
+
+0x36e4	0x1102	PR_FREEBUSY_ENT RYIDS	Unknown
+Array of Binary data values (See notes below)
+0x36e5	0x001e
+0x001f	PR_DEF_MSG_CLAS S	Unknown
+ASCII string or Unicode string
+0x36e6	0x001e
+0x001f	PR_DEF_FORM_NA ME	Unknown ASCII string or Unicode string
+
+0x36e9	0x000b	PR_GENERATE_EXC HANGE_VIEWS	Unknown Boolean
+
+0x36eb	0x0102	PR_FOLDER_VIEWL IST	Unknown
+Binary data
+Contains 4 zero bytes
+0x36ec	0x0003	PR_AGING_PERIOD	Unknown Integer 32-bit signed
+
+0x36ee	0x0003	PR_AGING_GRANUL ARITY	Unknown
+Integer 32-bit signed
+3.9.	Attachment properties (0x3700 – 0x38ff)
+Item type	Value type	Identifier	Description
+0x3700	0x0102	PR_ATTACHMENT_ X400_PARAMETERS	Unknown
+Binary data
+0x3701	0x000d	PR_ATTACH_DATA _OBJ	Attachment data object Embedded object
+	0x0102	PR_ATTACH_DATA _BIN	Attachment data Binary data
+0x3702	0x0102	PR_ATTACH_ENCO DING	Unknown Binary data
+0x3703	0x001e
+0x001f	PR_ATTACH_EXTEN SION	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x3704	0x001e
+0x001f	PR_ATTACH_FILEN AME	Attachment (short) filename ASCII or Unicode string
+0x3705	0x0003	PR_ATTACH_METH OD	Attachment method Integer 32-bit signed
+
+0x3707	0x001e
+0x001f	PR_ATTACH_LONG_ FILENAME	Attachment long filename ASCII or Unicode string
+0x3708	0x001e
+0x001f	PR_ATTACH_PATH NAME	Attachment (short) pathname ASCII or Unicode string
+0x3709	0x0102	PR_ATTACH_RENDE RING	Unknown Binary data
+0x370a	0x0102	PR_ATTACH_TAG	Unknown
+Binary data
+Consists of 9 bytes
+0x370b	0x0003	PR_RENDERING_PO SITION	Attachment Position Integer 32-bit signed
+0x370c	0x001e
+0x001f	PR_ATTACH_TRANS PORT_NAME	Unknown ASCII or Unicode string
+0x370d	0x001e
+0x001f	PR_ATTACH_LONG_ PATHNAME	Attachment long pathname ASCII or Unicode string
+0x370e	0x001e
+0x001f	PR_ATTACH_MIME_ TAG	Attachment mime type ASCII or Unicode string
+0x370f	0x0102	PR_ATTACH_ADDIT IONAL_INFO	Unknown
+Binary data
+0x3710		R_ATTACH_MIME_S EQUENCE	Attachment mime sequence
+0x3711	0x001e
+0x001f		Unknown string
+ASCII or Unicode string
+0x3712	0x001e
+0x001f	PR_ATTACH_CONTE NT_ID	Unknown ASCII or Unicode string
+0x3713	0x001e
+0x001f	PR_ATTACH_CONTE NT_LOCATION	Unknown
+ASCII or Unicode string
+0x3714	0x0003	PR_ATTACH_FLAGS	Unknown Integer 32-bit signed
+
+0x3716	0x001e
+0x001f	PR_ATTACH_CONTE NT_DISPOSITION	Unknown
+ASCII or Unicode string
+
+0x3880	0x0102	PR_SYNCEVENT_SU PPRESS_GUID	Unknown Binary data
+3.10.	Address book properties (0x3900 – 0x39ff)
+Item type	Value type	Identifier	Description
+0x3900	0x0003	PR_DISPLAY_TYPE	Unknown
+Integer 32-bit signed
+
+0x3902	0x0102	PR_TEMPLATEID	Unknown Binary data
+
+0x3904	0x0102	PR_PRIMARY_CAPA BILITY	Unknown
+Binary data
+
+0x39fe	0x001e
+0x001f	PR_SMTP_ADDRESS	Unknown ASCII or Unicode string
+0x39ff	0x001e
+0x001f	PR_7BIT_DISPLAY_ NAME	Unknown
+ASCII or Unicode string
+3.11.	Messaging user properties (0x3a00 – 0x3bff)
+Item type	Value type	Identifier	Description
+0x3a00	0x001e
+0x001f	PR_ACCOUNT	Contact’s Account name ASCII or Unicode string
+0x3a01	0x0102	PR_ALTERNATE_RE CIPIENT	Contact Alternate Recipient Binary data
+0x3a02	0x001e
+0x001f	PR_CALLBACK_TEL EPHONE_NUMBER	Callback telephone number ASCII or Unicode string
+0x3a03	0x000b	PR_CONVERSION_P ROHIBITED	Message Conversion Prohibited Boolean
+0x3a04	0x000b	PR_DISCLOSE_RECI PIENTS	Unknown Boolean
+0x3a05	0x001e
+0x001f	PR_GENERATION	Contacts Suffix
+ASCII or Unicode string
+0x3a06	0x001e
+0x001f	PR_GIVEN_NAME	Contacts First Name
+ASCII or Unicode string
+0x3a07	0x001e
+0x001f	PR_GOVERNMENT_I D_NUMBER	Contacts Government ID Number ASCII or Unicode string
+0x3a08	0x001e
+0x001f	PR_BUSINESS_TELE PHONE_NUMBER
+PR_OFFICE_TELEPH
+ONE_NUMBER	Business/Office Telephone Number ASCII or Unicode string
+0x3a09	0x001e
+0x001f	PR_HOME_TELEPHO NE_NUMBER	Home Telephone Number ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x3a0a	0x001e
+0x001f	PR_INITIALS	Contacts Initials
+ASCII or Unicode string
+0x3a0b	0x001e
+0x001f	PR_KEYWORD	Keyword
+ASCII or Unicode string
+0x3a0c	0x001e
+0x001f	PR_LANGUAGE	Contact’s Language
+ASCII or Unicode string
+0x3a0d	0x001e
+0x001f	PR_LOCATION	Contact’s Location
+ASCII or Unicode string
+0x3a0e	0x000b	PR_MAIL_PERMISSI ON	Mail Permission Boolean
+0x3a0f	0x001e
+0x001f	PR_MHS_COMMON_ NAME	MHS Common Name
+ASCII or Unicode string
+0x3a10	0x001e
+0x001f	PR_ORGANIZATION AL_ID_NUMBER	Organizational identification number ASCII or Unicode string
+0x3a11	0x001e
+0x001f	PR_SURNAME	Contacts Surname
+ASCII or Unicode string
+0x3a12	0x0102	PR_ORIGINAL_ENT RY_ID	Original entry identifier Binary data
+0x3a13	0x001e
+0x001f	PR_ORIGINAL_DISP LAY_NAME	Original display name ASCII or Unicode string
+0x3a14	0x0102	PR_ORIGINAL_SEA RCH_KEY	Original search key Binary data
+0x3a15	0x001e
+0x001f	PR_POSTAL_ADDRE SS	Default Postal Address ASCII or Unicode string
+0x3a16	0x001e
+0x001f	PR_COMPANY_NAM E	Company name
+ASCII or Unicode string
+0x3a17	0x001e
+0x001f	PR_TITLE	Job Title
+ASCII or Unicode string
+0x3a18	0x001e
+0x001f	PR_DEPARTMENT_N AME	Department Name
+ASCII or Unicode string Used in contact item
+0x3a19	0x001e
+0x001f	PR_OFFICE_LOCATI ON	Office Location
+ASCII or Unicode string
+0x3a1a	0x001e
+0x001f	PR_PRIMARY_TELE PHONE_NUMBER	Primary Telephone
+ASCII or Unicode string
+0x3a1b	0x001e
+0x001f	PR_BUSINESS2_TEL EPHONE_NUMBER
+PR_OFFICE2_TELEP
+HONE_NUMBER	Business/Office Phone Number 2 ASCII or Unicode string
+0x3a1c	0x001e
+0x001f	PR_MOBILE_TELEP HONE_NUMBER	Mobile Phone Number ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x3a1d	0x001e
+0x001f	PR_RADIO_TELEPH ONE_NUMBER	Radio Phone Number
+ASCII or Unicode string
+0x3a1e	0x001e
+0x001f	PR_CAR_TELEPHON E_NUMBER	Car Phone Number
+ASCII or Unicode string
+0x3a1f	0x001e
+0x001f	PR_OTHER_TELEPH ONE_NUMBER	Other Phone Number
+ASCII or Unicode string
+0x3a20	0x001e
+0x001f	PR_TRANSMITTABL E_DISPLAY_NAME	Transmittable Display Name ASCII or Unicode string
+0x3a21	0x001e
+0x001f	PR_PAGER_TELEPH ONE_NUMBER	Pager Phone Number
+ASCII or Unicode string
+0x3a22	0x0102	PR_USER_CERTIFIC ATE	User certificate Binary data
+0x3a23	0x001e
+0x001f	PR_PRIMARY_FAX_ NUMBER	Primary Fax Number
+ASCII or Unicode string
+0x3a24	0x001e
+0x001f	PR_BUSINESS_FAX_ NUMBER	Business Fax Number
+ASCII or Unicode string
+0x3a25	0x001e
+0x001f	PR_HOME_FAX_NU MBER	Home Fax Number
+ASCII or Unicode string
+0x3a26	0x001e
+0x001f	PR_BUSINESS_ADD RESS_COUNTRY	Business Address Country ASCII or Unicode string
+0x3a27	0x001e
+0x001f	PR_BUSINESS_ADD RESS_CITY	Business Address City ASCII or Unicode string
+0x3a28	0x001e
+0x001f	PR_BUSINESS_ADD
+RESS_STATE_OR_P ROVINCE	Business Address State ASCII or Unicode string
+0x3a29	0x001e
+0x001f	PR_BUSINESS_ADD RESS_STREET	Business Address Street ASCII or Unicode string
+0x3a2a	0x001e
+0x001f	PR_BUSINESS_POST AL_CODE	Business Postal Code
+ASCII or Unicode string
+0x3a2b	0x001e
+0x001f	PR_BUSINESS_PO_B OX	Business PO Box
+ASCII or Unicode string
+0x3a2c	0x001e
+0x001f	PR_TELEX_NUMBER	Telex Number
+ASCII or Unicode string
+0x3a2d	0x001e
+0x001f	PR_ISDN_NUMBER	ISDN Number
+ASCII or Unicode string
+0x3a2e	0x001e
+0x001f	PR_ASSISTANT_TEL EPHONE_NUMBER	Assistant Phone Number ASCII or Unicode string
+0x3a2f	0x001e
+0x001f	PR_HOME2_TELEPH ONE_NUMBER	Home Phone 2
+ASCII or Unicode string
+0x3a30	0x001e
+0x001f	PR_ASSISTANT	Assistant’s Name
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+
+0x3a40	0x000b	PR_SEND_RICH_INF O	Can receive Rich Text Boolean
+0x3a41	0x0040	PR_WEDDING_ANNI VERSARY	Wedding Anniversary Filetime
+0x3a42	0x0040	PR_BIRTHDAY	Birthday Filetime
+0x3a43	0x001e
+0x001f	PR_HOBBIES	Hobbies
+ASCII or Unicode string
+0x3a44	0x001e
+0x001f	PR_MIDDLE_NAME	Middle Name
+ASCII or Unicode string
+0x3a45	0x001e
+0x001f	PR_DISPLAY_NAME _PREFIX	Display Name Prefix (Contact Title) ASCII or Unicode string
+0x3a46	0x001e
+0x001f	PR_PROFESSION	Profession
+ASCII or Unicode string
+0x3a47	0x001e
+0x001f	PR_PREFERRED_BY _NAME	Preferred By Name
+ASCII or Unicode string
+0x3a48	0x001e
+0x001f	PR_SPOUSE_NAME	Spouse’s Name
+ASCII or Unicode string
+0x3a49	0x001e
+0x001f	PR_COMPUTER_NET WORK_NAME	Computer Network Name ASCII or Unicode string
+0x3a4a	0x001e
+0x001f	PR_CUSTOMER_ID	Customer ID
+ASCII or Unicode string
+0x3a4b	0x001e
+0x001f	PR_TTYTDD_PHONE _NUMBER	TTY/TDD Phone
+ASCII or Unicode string
+0x3a4c	0x001e
+0x001f	PR_FTP_SITE	Ftp Site
+ASCII or Unicode string
+0x3a4d	0x0002	PR_GENDER	Gender
+Integer 16-bit signed
+0x3a4e	0x001e
+0x001f	PR_MANAGER_NAM E	Manager’s Name
+ASCII or Unicode string
+0x3a4f	0x001e
+0x001f	PR_NICKNAME	Nickname
+ASCII or Unicode string
+0x3a50	0x001e
+0x001f	PR_PERSONAL_HO ME_PAGE	Personal Home Page
+ASCII or Unicode string
+0x3a51	0x001e
+0x001f	PR_BUSINESS_HOM E_PAGE	Business Home Page
+ASCII or Unicode string
+0x3a52	0x0048	PR_CONTACT_VERS ION	Unknown GUID
+0x3a53	0x1102	PR_CONTACT_ENTR YIDS	Unknown
+Array of Binary data values
+
+Item type	Value type	Identifier	Description
+0x3a54	0x101e
+0x101f	PR_CONTACT_ADD RTYPES	Unknown Array of ASCII or Unicode string values
+0x3a55	0x0003	PR_CONTACT_DEFA
+ULT_ADDRESS_IND EX	Unknown
+Integer 32-bit signed
+0x3a56	0x001e
+0x001f	PR_CONTACT_EMAI L_ADDRESSES	Unknown
+ASCII or Unicode string
+0x3a57	0x001e
+0x001f	PR_COMPANY_MAI N_PHONE_NUMBER	Company Main Phone ASCII or Unicode string
+0x3a58	0x001e
+0x001f	PR_CHILDRENS_NA MES	Childrens names
+ASCII or Unicode string
+0x3a59	0x001e
+0x001f	PR_HOME_ADDRES S_CITY	Home Address City
+ASCII or Unicode string
+0x3a5a	0x001e
+0x001f	PR_HOME_ADDRES S_COUNTRY	Home Address Country ASCII or Unicode string
+0x3a5b	0x001e
+0x001f	PR_HOME_ADDRES S_POSTAL_CODE	Home Address Postal Code ASCII or Unicode string
+0x3a5c	0x001e
+0x001f	PR_HOME_ADDRES
+S_STATE_OR_PROV INCE	Home Address State or Province ASCII or Unicode string
+0x3a5d	0x001e
+0x001f	PR_HOME_ADDRES S_STREET	Home Address Street
+ASCII or Unicode string
+0x3a5e	0x001e
+0x001f	PR_HOME_ADDRES
+S_POST_OFFICE_BO X	Home Address Post Office Box ASCII or Unicode string
+0x3a5f	0x001e
+0x001f	PR_OTHER_ADDRES S_CITY	Other Address City
+ASCII or Unicode string
+0x3a60	0x001e
+0x001f	PR_OTHER_ADDRES S_COUNTRY	Other Address Country ASCII or Unicode string
+0x3a61	0x001e
+0x001f	PR_OTHER_ADDRES S_POSTAL_CODE	Other Address Postal Code ASCII or Unicode string
+0x3a62	0x001e
+0x001f	PR_OTHER_ADDRES
+S_STATE_OR_PROV INCE	Other Address State
+ASCII or Unicode string
+0x3a63	0x001e
+0x001f	PR_OTHER_ADDRES S_STREET	Other Address Street
+ASCII or Unicode string
+0x3a64	0x001e
+0x001f	PR_OTHER_ADDRES
+S_POST_OFFICE_BO X	Other Address Post Office box ASCII or Unicode string
+
+0x3a70	0x1102	PR_USER_X509_CER TIFICATE	Unknown Array of Binary data
+Item type	Value type	Identifier	Description
+0x3a71	0x0003	PR_SEND_INTERNE T_ENCODING	Unknown Integer 32-bit signed
+3.12.	Distribution list properties (0x3c00 – 0x3cff)
+Item type	Value type	Identifier	Description
+
+3.13.	Profile properties (0x3d00 – 0x3dff)
+Item type	Value type	Identifier	Description
+0x3d00	0x0102	PR_STORE_PROVID ERS	Unknown
+Binary data
+0x3d01	0x0102	PR_AB_PROVIDERS	Unknown Binary data
+0x3d02	0x0102	PR_TRANSPORT_PR OVIDERS	Unknown
+Binary data
+
+0x3d04	0x000b	PR_DEFAULT_PROFI LE	Unknown Boolean
+0x3d05	0x1102	PR_AB_SEARCH_PA TH	Unknown
+Array of Binary data values
+0x3d06	0x0102	PR_AB_DEFAULT_D IR	Unknown Binary data
+0x3d07	0x0102	PR_AB_DEFAULT_P AB	Unknown
+Binary data
+0x3d08	0x0102	PR_FILTERING_HOO KS	Unknown Binary data
+0x3d09	0x001e
+0x001f	PR_SERVICE_NAME	Unknown
+ASCII or Unicode string
+0x3d0a	0x001e
+0x001f	PR_SERVICE_DLL_N AME	Unknown ASCII or Unicode string
+0x3d0b	0x001e
+0x001f	PR_SERVICE_ENTR Y_NAME	Unknown
+ASCII or Unicode string
+0x3d0c	0x0102	PR_SERVICE_UID	Unknown Binary data
+0x3d0d	0x0102	PR_SERVICE_EXTR A_UIDS	Unknown
+Binary data
+0x3d0e	0x0102	PR_SERVICES	Unknown Binary data
+0x3d0f	0x001e	PR_SERVICE_SUPPO	Unknown
+Item type	Value type	Identifier	Description
+	0x001f	RT_FILES	ASCII or Unicode string
+0x3d10	0x001e
+0x001f	PR_SERVICE_DELET E_FILES	Unknown ASCII or Unicode string
+0x3d11	0x0102	PR_AB_SEARCH_PA TH_UPDATE	Unknown
+Binary data
+0x3d12	0x001e
+0x001f	PR_PROFILE_NAME	Unknown ASCII or Unicode string
+0x3d13	0x001e
+0x001f	PR_SERVICE_INSTA LL_ID	Unknown
+ASCII or Unicode string
+
+0x3d21	0x0102	PR_ADMIN_SECURI TY_DESCRIPTOR	Unknown Binary data
+3.14.	Status object properties (0x3e00 – 0x3fff)
+Item type	Value type	Identifier	Description
+0x3e00	0x001e
+0x001f	PR_IDENTITY_DISPL AY	Unknown ASCII or Unicode string
+0x3e01	0x0102	PR_IDENTITY_ENTR YID	Unknown
+Binary data
+0x3e02	0x0003	PR_RESOURCE_MET HODS	Unknown Integer 32-bit signed
+0x3e03	0x0003	PR_RESOURCE_TYP E	Unknown
+Integer 32-bit signed
+0x3e04	0x0003	PR_STATUS_CODE	Unknown Integer 32-bit signed
+0x3e05	0x0102	PR_IDENTITY_SEAR CH_KEY	Unknown
+Binary data
+0x3e06	0x0102	PR_OWN_STORE_EN TRYID	Unknown Binary data
+0x3e07	0x001e
+0x001f	PR_RESOURCE_PAT H	Unknown
+ASCII or Unicode string
+0x3e08	0x001e
+0x001f	PR_STATUS_STRIN G	Unknown ASCII or Unicode string
+0x3e09	0x000b	PR_X400_DEFERRED
+_DELIVERY_CANCE
+L	Unknown Boolean
+0x3e0a	0x0102	PR_HEADER_FOLDE R_ENTRYID	Unknown
+Binary data
+0x3e0b	0x0003	PR_REMOTE_PROG RESS	Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x3e0c	0x001e
+0x001f	PR_REMOTE_PROG RESS_TEXT	Unknown ASCII or Unicode string
+0x3e0e	0x000b	PR_REMOTE_VALID ATE_OK	Unknown Boolean
+
+0x3f00	0x0003	PR_CONTROL_FLAG S	Unknown Integer 32-bit signed
+0x3f01	0x0102	PR_CONTROL_STRU CTURE	Unknown
+Binary data
+0x3f02	0x0003	PR_CONTROL_TYPE	Unknown Integer 32-bit signed
+0x3f03	0x0003	PR_DELTAX	Unknown
+Integer 32-bit signed
+0x3f04	0x0003	PR_DELTAY	Unknown Integer 32-bit signed
+0x3f05	0x0003	PR_XPOS	Unknown
+Integer 32-bit signed
+0x3f06	0x0003	PR_YPOS	Unknown Integer 32-bit signed
+0x3f07	0x0102	PR_CONTROL_ID	Unknown
+Binary data
+0x3f08	0x0003	PR_INITIAL_DETAIL S_PANE	Unknown Integer 32-bit signed
+
+0x3f80	0x0014	PR_DID	Unknown
+Integer 64-bit signed
+0x3f81	0x0014	PR_SEQID	Unknown Integer 64-bit signed
+0x3f82	0x0014	PR_DRAFTID	Unknown
+Integer 64-bit signed
+0x3f83	0x0040	PR_CHECK_IN_TIME	Unknown Filetime
+0x3f84	0x001e
+0x001f	PR_CHECK_IN_COM MENT	Unknown
+ASCII or Unicode string
+0x3f85	0x0003	PR_VERSION_OP_C ODE	Unknown Integer 32-bit signed
+0x3f86	0x0102	PR_VERSION_OP_D ATA	Unknown
+Binary data
+0x3f87	0x0003	PR_VERSION_SEQU ENCE_NUMBER	Unknown Integer 32-bit signed
+0x3f88	0x0014	PR_ATTACH_ID	Unknown
+
+Item type	Value type	Identifier	Description
+			Integer 64-bit signed
+
+0x3f8d	0x001e
+0x001f	PR_PKM_DOC_STAT US	Unknown ASCII or Unicode string
+0x3f8e	0x101e
+0x101f	PR_MV_PKM_OPER ATION_REQ	Unknown
+Array of ASCII or Unicode string values
+0x3f8f	0x001e
+0x001f	PR_PKM_DOC_INTE RNAL_STATE	Unknown ASCII or Unicode string
+
+0x3f90	0x0002	PR_VERSIONING_FL AGS	Unknown
+Integer 16-bit signed
+0x3f91	0x0102	PR_PKM_LAST_UNA PPROVED_VID	Unknown Binary data
+0x3f92	0x101e
+0x101f	PR_MV_PKM_VERSI ON_LABELS	Unknown
+Array of ASCII or Unicode string values
+0x3f93	0x101e
+0x101f	PR_MV_PKM_VERSI ON_STATUS	Unknown Array of ASCII or Unicode string values
+0x3f94	0x0102	PR_PKM_INTERNAL _DATA	Unknown
+Binary data
+
+0x3fc9	0x0102	PR_LAST_CONFLICT	Unknown Binary data
+0x3fca	0x0102	PR_CONFLICT_MSG _KEY	Unknown
+Binary data
+
+0x3fd0	0x0102	PR_REPL_HEADER	Unknown Binary data
+0x3fd1	0x0102	PR_REPL_STATUS	Unknown
+Binary data
+0x3fd2	0x0102	PR_REPL_CHANGES	Unknown Binary data
+0x3fd3	0x0102	PR_REPL_RGM	Unknown
+Binary data
+0x3fd4	0x0102	PR_RMI	Unknown Binary data
+0x3fd5	0x0102	PR_INTERNAL_POS T_REPLY	Unknown
+Binary data
+0x3fd6	0x0040	PR_NTSD_MODIFIC ATION_TIME	Unknown Filetime
+
+
+Item type	Value type	Identifier	Description
+0x3fd8	0x001e
+0x001f	PR_PREVIEW_UNRE AD	Unknown ASCII or Unicode string
+0x3fd9	0x001e
+0x001f	PR_PREVIEW	Unknown
+ASCII or Unicode string
+0x3fda	0x001e
+0x001f	PR_ABSTRACT	Unknown ASCII or Unicode string
+0x3fdb	0x0003	PR_DL_REPORT_FL AGS	Unknown
+Integer 32-bit signed
+0x3fdc	0x0102	PR_BILATERAL_INF O	Unknown Binary data
+0x3fdd	0x0003	PR_MSG_BODY_ID	Unknown
+Integer 32-bit signed
+0x3fde	0x0003	PR_INTERNET_CPID	Unknown Integer 32-bit signed
+0x3fdf	0x0003	PR_AUTO_RESPONS E_SUPPRESS	Unknown
+Integer 32-bit signed
+0x3fe0	0x000d	PR_ACL_TABLE	Unknown
+Embedded object
+	0x0102	PR_ACL_DATA	Unknown
+Binary data
+0x3fe1	0x000d	PR_RULES_TABLE	Unknown
+Embedded object
+	0x0102	PR_RULES_DATA	Unknown
+Binary data
+0x3fe2	0x0003	PR_FOLDER_DESIG N_FLAGS	Unknown Integer 32-bit signed
+0x3fe3	0x000b	PR_DELEGATED_BY _RULE	Unknown Boolean
+0x3fe4	0x000b	PR_DESIGN_IN_PRO GRESS	Unknown Boolean
+0x3fe5	0x000b	PR_SECURE_ORIGIN ATION	Unknown Boolean
+0x3fe6	0x000b	PR_PUBLISH_IN_AD DRESS_BOOK	Unknown Boolean
+0x3fe7	0x0003	PR_RESOLVE_METH OD	Unknown
+Integer 32-bit signed
+0x3fe8	0x001e
+0x001f	PR_ADDRESS_BOOK _DISPLAY_NAME	Unknown ASCII or Unicode string
+0x3fe9	0x0003	PR_EFORMS_LOCAL E_ID	Unknown
+Integer 32-bit signed
+0x3fea	0x000b	PR_HAS_DAMS	Unknown
+
+Item type	Value type	Identifier	Description
+			Boolean
+0x3feb	0x0003	PR_DEFERRED_SEN D_NUMBER	Unknown Integer 32-bit signed
+0x3fec	0x0003	PR_DEFERRED_SEN D_UNITS	Unknown
+Integer 32-bit signed
+0x3fed	0x0003	PR_EXPIRY_NUMBE R	Unknown Integer 32-bit signed
+0x3fee	0x0003	PR_EXPIRY_UNITS	Unknown
+Integer 32-bit signed
+0x3fef	0x0040	PR_DEFERRED_SEN D_TIME	Unknown Filetime
+0x3ff0	0x0102	PR_CONFLICT_ENT RYID	Unknown
+Binary data
+0x3ff1	0x0003	PR_MESSAGE_LOCA LE_ID	Unknown Integer 32-bit signed
+0x3ff2	0x0102	PR_RULE_TRIGGER _HISTORY	Unknown
+Binary data
+0x3ff3	0x0102	PR_MOVE_TO_STOR E_ENTRYID	Unknown Binary data
+0x3ff4	0x0003	PR_MOVE_TO_FOLD ER_ENTRYID	Unknown
+Integer 32-bit signed
+0x3ff5	0x0003	PR_STORAGE_QUO TA_LIMIT	Unknown Integer 32-bit signed
+0x3ff6	0x0003	PR_EXCESS_STORA GE_USED	Unknown
+Integer 32-bit signed
+0x3ff7	0x001e
+0x001f	PR_SVR_GENERATI NG_QUOTA_MSG	Unknown ASCII or Unicode string
+0x3ff8	0x001e
+0x001f	PR_CREATOR_NAM E	Unknown
+ASCII or Unicode string
+0x3ff9	0x0102	PR_CREATOR_ENTR YID	Unknown Binary data
+0x3ffa	0x001e
+0x001f	PR_LAST_MODIFIER _NAME	Unknown
+ASCII or Unicode string
+Contains the same value as Display TO?
+0x3ffb	0x0102	PR_LAST_MODIFIER _ENTRYID	Unknown
+Binary data
+0x3ffc	0x001e
+0x001f	PR_REPLY_RECIPIE NT_SMTP_PROXIES	Unknown ASCII or Unicode string
+0x3ffd	0x0003	PR_MESSAGE_CODE PAGE	Unknown
+Integer 32-bit signed
+0x3ffe	0x0102	PR_EXTENDED_ACL	Extended ACL data
+Item type	Value type	Identifier	Description
+		_DATA	Binary data
+0x3fff	0x000b	PR_FROM_I_HAVE	Unknown Boolean
+3.15.	Message envelope properties (0x4000 – 0x57ff)
+Item type	Value type	Identifier	Description
+0x4000	0x0003	PR_NEW_ATTACH	Unknown Integer 32-bit signed
+0x4001	0x0003	PR_START_EMBED	Unknown
+Integer 32-bit signed
+0x4002	0x0003	PR_END_EMBED	Unknown Integer 32-bit signed
+0x4003	0x0003	PR_START_RECIP	Unknown
+Integer 32-bit signed
+0x4004	0x0003	PR_END_RECIP	Unknown Integer 32-bit signed
+0x4005	0x0003	PR_END_CC_RECIP	Unknown
+Integer 32-bit signed
+0x4006	0x0003	PR_END_BCC_RECIP	Unknown Integer 32-bit signed
+0x4007	0x0003	PR_END_P1_RECIP	Unknown
+Integer 32-bit signed
+			Unknown Integer 32-bit signed
+0x4009	0x0003	PR_START_TOP_FL D	Unknown
+Integer 32-bit signed
+0x400a	0x0003	PR_START_SUB_FL D	Unknown Integer 32-bit signed
+0x400b	0x0003	PR_END_FOLDER	Unknown
+Integer 32-bit signed
+0x400c	0x0003	PR_START_MESSAG E	Unknown Integer 32-bit signed
+0x400d	0x0003	PR_END_MESSAGE	Unknown
+Integer 32-bit signed
+0x400e	0x0003	PR_END_ATTACH	Unknown Integer 32-bit signed
+0x400f	0x0003	PR_EC_WARNING	Unknown
+Integer 32-bit signed
+0x4010	0x0003	PR_START_FAI_MS G	Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x4011	0x0102	PR_NEW_FX_FOLDE R	Unknown Binary data
+0x4012	0x0003	PR_INCR_SYNC_CH G	Unknown
+Integer 32-bit signed
+0x4013	0x0003	PR_INCR_SYNC_DEL	Unknown Integer 32-bit signed
+0x4014	0x0003	PR_INCR_SYNC_EN D	Unknown
+Integer 32-bit signed
+0x4015	0x0003	PR_INCR_SYNC_MS G	Unknown Integer 32-bit signed
+0x4016	0x0003	PR_FX_DEL_PROP	Unknown
+Integer 32-bit signed
+0x4017	0x0003	PR_IDSET_GIVEN	Unknown Integer 32-bit signed
+
+0x4019	0x0003	PR_SENDER_FLAGS	Unknown
+Integer 32-bit signed
+0x401a	0x0003	PR_SENT_REPRESEN TING_FLAGS	Unknown Integer 32-bit signed
+0x401b	0x0003	PR_RCVD_BY_FLAG	Unknown
+Integer 32-bit signed
+0x401c	0x0003	PR_RCVD_REPRESE NTING_FLAGS	Unknown Integer 32-bit signed
+0x401d	0x0003	PR_ORIGINAL_SEND ER_FLAGS	Unknown
+Integer 32-bit signed
+0x401e	0x0003	PR_ORIGINAL_SENT
+_REPRESENTING_FL
+AGS	Unknown Integer 32-bit signed
+0x401f	0x0003	PR_REPORT_FLAGS	Unknown Integer 32-bit signed
+0x4020	0x0003	PR_READ_RECEIPT_ FLAGS	Unknown
+Integer 32-bit signed
+0x4021	0x000b	PR_SOFT_DELETES	Unknown Boolean
+
+0x402c	0x0102	PR_MESSAGE_SUBM
+ISSION_ID_FROM_C LIENT	Unknown
+Binary data
+
+0x4030	0x001e
+0x001f	PR_SENDER_SIMPLE _DISP_NAME	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x4031	0x001e
+0x001f	PR_SENT_REPRESEN
+TING_SIMPLE_DISP_ NAME	Unknown ASCII or Unicode string
+
+0x4038	0x001e
+0x001f	PR_CREATOR_SIMP LE_DISP_NAME	Unknown ASCII or Unicode string
+
+0x403d	0x001e
+0x001f	PR_ORG_ADDR_TYP E	Unknown
+ASCII or Unicode string
+0x403e	0x001e
+0x001f	PR_ORG_EMAIL_AD DR	Unknown ASCII or Unicode string
+
+0x4059	0x0003	PR_CREATOR_FLAG S	Unknown
+Integer 32-bit signed
+0x405a	0x0003	PR_MODIFIER_FLAG S	Unknown Integer 32-bit signed
+0x405b	0x0003	PR_ORIGINATOR_FL AGS	Unknown
+Integer 32-bit signed
+0x405c	0x0003	PR_REPORT_DESTIN ATION_FLAGS	Unknown Integer 32-bit signed
+0x405d	0x0003	PR_ORIGINAL_AUT HOR_FLAGS	Unknown
+Integer 32-bit signed
+
+0x4061	0x0102	PR_ORIGINATOR_SE ARCH_KEY	Unknown Binary data
+
+0x4064	0x0102	PR_REPORT_DESTIN
+ATION_SEARCH_KE Y	Unknown
+Binary data
+0x4065	0x0003	PR_ER_FLAG	Unknown
+Integer 32-bit signed
+
+0x4068	0x0102	PR_INTERNET_SUBJ ECT	Unknown Binary data
+0x4069	0x0102	PR_INTERNET_SENT
+_REPRESENTING_N
+AME	Unknown
+Binary data
+3.16.	Recipient properties (0x5800 - 0x5fff)
+Item type	Value type	Identifier	Description
+0x5902	0x0003	PR_INET_MAIL_OVE RRIDE_FORMAT	Unknown
+Integer 32-bit signed
+0x5909	0x0003	PR_MSG_EDITOR_F ORMAT	Unknown Integer 32-bit signed
+
+0x5fde	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+0x5fde	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+
+0x5feb	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+
+0x5fef	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+
+0x5ff2	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+
+0x5ff5	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+0x5ff6	0x001e
+0x001f	PR_RECIPIENT_DISP LAY_NAME	Unknown
+ASCII or Unicode string
+0x5ff7	0x0102	PR_RECIPIENT_ENT RYID	Unknown Binary data
+
+0x5ffd	0x0003	PR_RECIPIENTS_FL AGS	Unknown
+Integer 32-bit signed
+
+0x5fff	0x0003	PR_RECIPIENT_TRA CKSTATUS	Unknown Integer 32-bit signed
+3.17.	Non-transmittable message properties (0x6000 - 0x65ff)
+Item type	Value type	Identifier	Description
+0x6001	0x0003	PR_DOTSTUFF_STA TE	Unknown
+Integer 32-bit signed
+	0x001e
+0x001f		Unknown	 Unicode string
+			ASCII 	or
+			Found in NK2 file
+			contains e-mail address or display name
+0x6002	0x000b		Unknown
+Boolean
+Found in NK2 file
+0x6003	0x001e
+0x001f		Unknown	or Unicode string
+			ASCII
+			Found in NK2 file
+0x6004	0x0003		Unknown
+Integer 32-bit signed
+Found in NK2 file
+
+0x65a0	0x0014	PR_RULE_SERVER_ RULE_ID	Unknown
+Integer 64-bit signed
+
+0x65c2	0x0102	PR_REPLY_TEMPLA TE_ID	Unknown Binary data
+0x65e0	0x0102	PR_SOURCE_KEY	Unknown
+Binary data
+0x65e1	0x0102	PR_PARENT_SOURC E_KEY	Unknown Binary data
+0x65e2	0x0102	PR_CHANGE_KEY	Unknown
+Binary data
+			GUID with trailing bytes?
+			The last bytes are repeated in 0x65e3
+0x65e3	0x0102	PR_PREDECESSOR_ CHANGE_LIST	Unknown Binary data
+			1 additional byte at the start
+			GUID with trailing bytes?
+			The last bytes are repeated in 0x65e2
+			Multiple entries possible?
+0x65e4	0x0003	PR_SYNCHRONIZE_ FLAGS	Unknown
+Integer 32-bit signed
+0x65e5	0x000b	PR_AUTO_ADD_NE W_SUBS	Unknown Boolean
+0x65e6	0x000b	PR_NEW_SUBS_GET _AUTO_ADD	Unknown Boolean
+0x65e7	0x001e	PR_MESSAGE_SITE_	Unknown
+Item type	Value type	Identifier	Description
+	0x001f	NAME	ASCII or Unicode string
+0x65e8	0x000b	PR_MESSAGE_PROC ESSED	Unknown Boolean
+0x65e9	0x0003	PR_RULE_MSG_STA TE	Unknown
+Integer 32-bit signed
+0x65ea	0x0003	PR_RULE_MSG_USE R_FLAGS	Unknown Integer 32-bit signed
+0x65eb	0x001e
+0x001f	PR_RULE_MSG_PRO VIDER	Unknown
+ASCII or Unicode string
+0x65ec	0x001e
+0x001f	PR_RULE_MSG_NA ME	Unknown ASCII or Unicode string
+0x65ed	0x0003	PR_RULE_MSG_LEV EL	Unknown
+Integer 32-bit signed
+0x65ee	0x0102	PR_RULE_MSG_PRO VIDER_DATA	Unknown Binary data
+0x65ef	0x0102	PR_RULE_MSG_ACT IONS	Unknown
+Binary data
+0x65f0	0x0102	PR_RULE_MSG_CON DITION	Unknown Binary data
+0x65f1	0x0003	PR_RULE_MSG_CON DITION_LCID	Unknown
+Integer 32-bit signed
+0x65f2	0x0002	PR_RULE_MSG_VER SION	Unknown Integer 16-bit signed
+0x65f3	0x0003	PR_RULE_MSG_SEQ UENCE	Unknown
+Integer 32-bit signed
+0x65f4	0x000b	PR_PREVENT_MSG_ CREATE	Unknown Boolean
+0x65f5	0x0040	PR_IMAP_INTERNA L_DATE	Unknown GUID
+3.18.	Non-transmittable properties (0x6600 – 0x67ff)
+Item type	Value type	Identifier	Description
+0x6600	0x0003	PR_PROFILE_VERSI ON	Unknown
+Integer 32-bit signed
+0x6601	0x0003	PR_PROFILE_CONFI G_FLAGS	Unknown Integer 32-bit signed
+0x6602	0x001e
+0x001f	PR_PROFILE_HOME_ SERVER	Unknown
+ASCII or Unicode string
+0x6603	0x001e
+0x001f	PR_PROFILE_USER	Unknown ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x6604	0x0003	PR_PROFILE_CONNE CT_FLAGS	Unknown Integer 32-bit signed
+0x6605	0x0003	PR_PROFILE_TRANS PORT_FLAGS	Unknown
+Integer 32-bit signed
+0x6606	0x0003	PR_PROFILE_UI_ST ATE	Unknown Integer 32-bit signed
+0x6607	0x001e
+0x001f	PR_PROFILE_UNRES OLVED_NAME	Unknown
+ASCII or Unicode string
+0x6608	0x001e
+0x001f	PR_PROFILE_UNRES OLVED_SERVER	Unknown ASCII or Unicode string
+0x6609	0x0003	PR_PROFILE_OPEN_ FLAGS	Unknown
+Integer 32-bit signed
+0x6609	0x001e
+0x001f	PR_PROFILE_BINDI NG_ORDER	Unknown ASCII or Unicode string
+0x660a	0x0003	PR_PROFILE_TYPE	Unknown
+Integer 32-bit signed
+0x660b	0x0003		Unknown Integer 32-bit signed
+	0x001e
+0x001f	PR_PROFILE_MAILB OX	Unknown
+ASCII or Unicode string
+0x660c	0x001e
+0x001f	PR_PROFILE_SERVE R	Unknown ASCII or Unicode string
+0x660d	0x0003	PR_PROFILE_MAX_ RESTRICT	Unknown
+Integer 32-bit signed
+0x660e	0x001e
+0x001f	PR_PROFILE_AB_FIL ES_PATH	Unknown ASCII or Unicode string
+0x660f	0x001e
+0x001f	PR_PROFILE_FAVFL D_DISPLAY_NAME	Unknown
+ASCII or Unicode string
+0x6610	0x0003		Unknown Integer 32-bit signed
+	0x001e
+0x001f	PR_PROFILE_OFFLI NE_STORE_PATH	Unknown
+ASCII or Unicode string
+0x6611	0x0102	PR_PROFILE_OFFLI NE_INFO	Unknown Binary data
+0x6612	0x001e
+0x001f	PR_PROFILE_HOME_ SERVER_DN	Unknown
+ASCII or Unicode string
+0x6613	0x001e
+0x001f	PR_PROFILE_HOME_ SERVER_ADDRS	Unknown ASCII or Unicode string
+0x6614	0x001e
+0x001f	PR_PROFILE_SERVE R_DN	Unknown
+ASCII or Unicode string
+0x6615	0x001e	PR_PROFILE_FAVFL	Unknown
+
+Item type	Value 	type	Identifier	Description
+	0x001f		D_COMMENT	ASCII or Unicode string
+0x6616	0x001e
+0x001f		PR_PROFILE_ALLPU B_DISPLAY_NAME	Unknown ASCII or Unicode string
+0x6617	0x001e
+0x001f		PR_PROFILE_ALLPU B_COMMENT	Unknown
+ASCII or Unicode string
+0x6618	0x0003		PR_DISABLE_WINS OCK	Unknown Integer 32-bit signed
+0x6618	0x000b		PR_IN_TRANSIT	Unknown Boolean
+0x6619	0x0003		PR_PROFILE_AUTH_ PACKAGE	Unknown Integer 32-bit signed
+	0x001e			Unknown
+ASCII or Unicode string
+	0x001f
+				Contains part of the e-mail body contents
+				perhaps a short preview (510 bytes max?)
+	0x0102		PR_USER_ENTRYID	Unknown Binary data
+0x661a	0x001e
+0x001f		PR_USER_NAME	Unknown
+ASCII or Unicode string
+0x661b	0x0102		PR_MAILBOX_OWN ER_ENTRYID	Unknown Binary data
+0x661c	0x001e
+0x001f		PR_MAILBOX_OWN ER_NAME	Unknown
+ASCII or Unicode string
+0x661d	0x000b		PR_OOF_STATE	Unknown Boolean
+0x661e	0x0102		PR_SCHEDULE_FOL DER_ENTRYID	Unknown
+Binary data
+0x661f	0x0102		PR_IPM_DAF_ENTR YID	Unknown Binary data
+0x6620	0x0102		PR_NON_IPM_SUBT REE_ENTRYID	Unknown
+Binary data
+0x6621	0x0102		PR_EFORMS_REGIS TRY_ENTRYID	Unknown Binary data
+0x6622	0x0102		PR_SPLUS_FREE_BU SY_ENTRYID	Unknown
+Binary data
+0x6623	0x001e
+0x001f		PR_HIERARCHY_SE RVER	Unknown ASCII or Unicode string
+0x6623	0x0102		PR_OFFLINE_ADDR BOOK_ENTRYID	Unknown
+Binary data
+0x6624	0x0102		PR_EFORMS_FOR_L OCALE_ENTRYID	Unknown Binary data
+
+Item type	Value type	Identifier	Description
+0x6625	0x0102	PR_FREE_BUSY_FO
+R_LOCAL_SITE_ENT RYID	Unknown Binary data
+0x6626	0x0102	PR_ADDRBOOK_FO
+R_LOCAL_SITE_ENT RYID	Unknown Binary data
+0x6627	0x0102	PR_OFFLINE_MESSA GE_ENTRYID	Unknown Binary data
+0x6628	0x0102	PR_GW_MTSIN_ENT RYID	Unknown
+Binary data
+0x6629	0x0102	PR_GW_MTSOUT_E NTRYID	Unknown Binary data
+0x662a	0x000b	PR_TRANSFER_ENA BLED	Unknown Boolean
+0x662b	0x0102	PR_TEST_LINE_SPE ED	Unknown Binary data
+0x662c	0x000d	PR_HIERARCHY_SY NCHRONIZER	Unknown
+Embedded object
+0x662d	0x000d	PR_CONTENTS_SYN CHRONIZER	Unknown
+Embedded object
+0x662e	0x000d	PR_COLLECTOR	Unknown
+Embedded object
+0x662f	0x000d	PR_FAST_TRANSFE R	Unknown
+Embedded object
+0x6630	0x0102	PR_IPM_FAVORITES _ENTRYID	Unknown
+Binary data
+0x6631	0x0102	PR_IPM_PUBLIC_FO LDERS_ENTRYID	Unknown Binary data
+0x6632	0x000b	PR_STORE_OFFLINE	Unknown Boolean
+0x6633	0x000b		Unknown Boolean
+0x6634	0x000d	PR_CHANGE_ADVIS OR	Unknown
+Embedded object
+	0x0014		Unknown Integer 64-bit signed
+0x6635	0x0003		Unknown
+Integer 32-bit signed
+	0x001e
+0x001f	PR_FAVORITES_DEF AULT_NAME	Unknown ASCII or Unicode string
+0x6636	0x0003		Unknown
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+	0x0102	PR_SYS_CONFIG_FO LDER_ENTRYID	Unknown Binary data
+0x6637	0x0048	PR_CHANGE_NOTIFI CATION_GUID	Unknown GUID
+0x6638	0x0003	PR_FOLDER_CHILD_ COUNT	Unknown Integer 32-bit signed
+0x6639	0x0003	PR_RIGHTS	Unknown
+Integer 32-bit signed
+0x663a	0x000b	PR_HAS_RULES	Unknown Boolean
+0x663b	0x0102	PR_ADDRESS_BOOK _ENTRYID	Unknown
+Binary data
+0x663c	0x0102	PR_PUBLIC_FOLDER _ENTRYID	Unknown Binary data
+0x663d	0x0003	PR_OFFLINE_FLAGS	Unknown
+Integer 32-bit signed
+0x663e	0x0003	PR_HIERARCHY_CH ANGE_NUM	Unknown Integer 32-bit signed
+0x663f	0x000b	PR_HAS_MODERAT OR_RULES	Unknown Boolean
+0x6640	0x0003	PR_DELETED_MSG_ COUNT	Unknown Integer 32-bit signed
+0x6641	0x0003	PR_DELETED_FOLD ER_COUNT	Unknown
+Integer 32-bit signed
+0x6642	0x0040	PR_OLDEST_DELET ED_ON	Unknown Filetime
+0x6643	0x0003	PR_DELETED_ASSO C_MSG_COUNT	Unknown
+Integer 32-bit signed
+0x6644	0x001e
+0x001f	PR_REPLICA_SERVE R	Unknown ASCII or Unicode string
+0x6645	0x0102	PR_CLIENT_ACTION S	Unknown
+Binary data
+0x6646	0x0102	PR_DAM_ORIGINAL _ENTRYID	Unknown Binary data
+0x6647	0x000b	PR_DAM_BACK_PA TCHED	Unknown Boolean
+0x6648	0x0003	PR_RULE_ERROR	Unknown Integer 32-bit signed
+0x6649	0x0003	PR_RULE_ACTION_ TYPE	Unknown
+Integer 32-bit signed
+0x664a	0x000b	PR_HAS_NAMED_PR	Unknown
+
+Item type	Value type	Identifier	Description
+		OPERTIES	Boolean
+0x664b	0x0014	PR_REPLICA_VERSI ON	Unknown Integer 64-bit signed
+
+0x6650	0x0003	PR_RULE_ACTION_ NUMBER	Unknown
+Integer 32-bit signed
+0x6651	0x0102	PR_RULE_FOLDER_ ENTRYID	Unknown Binary data
+0x6652	0x0102	PR_ACTIVE_USER_E NTRYID	Unknown
+Binary data
+0x6653	0x0003	PR_0X400_ENVELOP E_TYPE	Unknown Integer 32-bit signed
+0x6654	0x0040	PR_MSG_FOLD_TIM E	Unknown
+Filetime
+0x6655	0x0102	PR_ICS_CHANGE_K EY	Unknown Binary data
+
+0x6658	0x0003	PR_GW_ADMIN_OPE RATIONS	Unknown
+Integer 32-bit signed
+0x6659	0x0102	PR_INTERNET_CON TENT	Unknown Binary data
+0x665a	0x000b	PR_HAS_ATTACH_F ROM_IMAIL	Unknown Boolean
+0x665b	0x001e
+0x001f	PR_ORIGINATOR_N AME	Unknown ASCII or Unicode string
+0x665c	0x001e
+0x001f	PR_ORIGINATOR_A DDR	Unknown
+ASCII or Unicode string
+0x665d	0x001e
+0x001f	PR_ORIGINATOR_A DDRTYPE	Unknown ASCII or Unicode string
+0x665e	0x0102	PR_ORIGINATOR_E NTRYID	Unknown
+Binary data
+0x665f	0x0040	PR_ARRIVAL_TIME	Unknown Filetime
+0x6660	0x0102	PR_TRACE_INFO	Unknown
+Binary data
+0x6661	0x0102	PR_SUBJECT_TRAC E_INFO	Unknown Binary data
+0x6662	0x0003	PR_RECIPIENT_NUM BER	Unknown
+Integer 32-bit signed
+0x6663	0x0102	PR_MTS_SUBJECT_I D	Unknown Binary data
+
+Item type	Value type	Identifier	Description
+0x6664	0x001e
+0x001f	PR_REPORT_DESTIN ATION_NAME	Unknown ASCII or Unicode string
+0x6665	0x0102	PR_REPORT_DESTIN ATION_ENTRYID	Unknown
+Binary data
+0x6666	0x0102	PR_CONTENT_SEAR CH_KEY	Unknown Binary data
+0x6667	0x0102	PR_FOREIGN_ID	Unknown
+Binary data
+0x6668	0x0102	PR_FOREIGN_REPO RT_ID	Unknown Binary data
+0x6669	0x0102	PR_FOREIGN_SUBJE CT_ID	Unknown
+Binary data
+0x666a	0x0102	PR_INTERNAL_TRA CE_INFO	Unknown Binary data
+
+0x666c	0x000b	PR_IN_CONFLICT	Unknown Boolean
+
+0x6670	0x0102	PR_LONGTERM_ENT RYID_FROM_TABLE	Unknown Binary data
+0x6671	0x0014	PR_MEMBER_ID	Unknown
+Integer 64-bit signed
+0x6672	0x001e
+0x001f	PR_MEMBER_NAME	Unknown ASCII or Unicode string
+0x6673	0x0003	PR_MEMBER_RIGHT S	Unknown
+Integer 32-bit signed
+0x6674	0x0014	PR_RULE_ID	Unknown Integer 64-bit signed
+0x6675	0x0102	PR_RULE_IDS	Unknown
+Binary data
+0x6676	0x0003	PR_RULE_SEQUENC E	Unknown Integer 32-bit signed
+0x6677	0x0003	PR_RULE_STATE	Unknown
+Integer 32-bit signed
+0x6678	0x0003	PR_RULE_USER_FL AGS	Unknown Integer 32-bit signed
+0x6679	0x000d	PR_RULE_CONDITIO N	Unknown
+Embedded object
+
+0x667b	0x001e
+0x001f	PR_PROFILE_MOAB	Unknown ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x667c	0x001e
+0x001f	PR_PROFILE_MOAB _GUID	Unknown ASCII or Unicode string
+0x667d	0x0003	PR_PROFILE_MOAB _SEQ	Unknown
+Integer 32-bit signed
+
+0x667f	0x1102	PR_IMPLIED_RESTR ICTIONS	Unknown Array of Binary data values
+0x6680	0x001e
+0x001f	PR_RULE_ACTIONS	Unknown
+ASCII or Unicode string
+0x6681	0x001e
+0x001f	PR_RULE_PROVIDE R	Unknown ASCII or Unicode string
+0x6682	0x001e
+0x001f	PR_RULE_NAME	Unknown
+ASCII or Unicode string
+0x6683	0x0003	PR_RULE_LEVEL	Unknown Integer 32-bit signed
+0x6684	0x0102	PR_RULE_PROVIDE R_DATA	Unknown
+Binary data
+0x6685	0x0040	PR_LAST_FULL_BA CKUP	Unknown Filetime
+
+0x6687	0x0102	PR_PROFILE_ADDR_ INFO	Unknown
+Binary data
+
+0x6689	0x0102	PR_PROFILE_OPTIO NS_DATA	Unknown Binary data
+0x668a	0x0102	PR_EVENTS_ROOT_ FOLDER_ENTRYID	Unknown
+Binary data
+
+0x668d	0x001e
+0x001f	PR_INBOUND_NEWS FEED_DN	Unknown ASCII or Unicode string
+0x668e	0x001e
+0x001f	PR_OUTBOUND_NE WSFEED_DN	Unknown
+ASCII or Unicode string
+0x668f	0x0040	PR_DELETED_ON	Unknown Filetime
+0x6690	0x0003	PR_REPLICATION_S TYLE	Unknown
+Integer 32-bit signed
+0x6691	0x0102	PR_REPLICATION_S CHEDULE	Unknown Binary data
+0x6692	0x0003	PR_REPLICATION_M ESSAGE_PRIORITY	Unknown
+Integer 32-bit signed
+0x6693	0x0003	PR_OVERALL_MSG_	Unknown
+
+Item type	Value type	Identifier	Description
+		AGE_LIMIT	Integer 32-bit signed
+0x6694	0x0003	PR_REPLICATION_A LWAYS_INTERVAL	Unknown Integer 32-bit signed
+0x6695	0x0003	PR_REPLICATION_M SG_SIZE	Unknown
+Integer 32-bit signed
+0x6696	0x000b	PR_IS_NEWSGROUP _ANCHOR	Unknown Boolean
+0x6697	0x000b	PR_IS_NEWSGROUP	Unknown Boolean
+0x6698	0x0102	PR_REPLICA_LIST	Unknown Binary data
+0x6699	0x0003	PR_OVERALL_AGE_ LIMIT	Unknown
+Integer 32-bit signed
+0x669a	0x001e
+0x001f	PR_INTERNET_CHA RSET	Unknown ASCII or Unicode string
+0x669b	0x0014	PR_DELETED_MESS
+AGE_SIZE_EXTENDE D	Unknown
+Integer 64-bit signed
+0x669c	0x0014	PR_DELETED_NORM
+AL_MESSAGE_SIZE_ EXTENDED	Unknown
+Integer 64-bit signed
+0x669d	0x0014	PR_DELETED_ASSO
+C_MESSAGE_SIZE_E XTENDED	Unknown
+Integer 64-bit signed
+0x669e	0x000b	PR_SECURE_IN_SIT E	Unknown Boolean
+
+0x66a0	0x001e
+0x001f	PR_NT_USER_NAME	Unknown ASCII or Unicode string
+0x66a1	0x0003	PR_LOCALE_ID	Unknown
+Integer 32-bit signed
+0x66a2	0x0040	PR_LAST_LOGON_TI ME	Unknown Filetime
+0x66a3	0x0040	PR_LAST_LOGOFF_ TIME	Unknown
+Filetime
+0x66a4	0x0003	PR_STORAGE_LIMIT _INFORMATION	Unknown Integer 32-bit signed
+0x66a5	0x001e
+0x001f	PR_NEWSGROUP_C OMPONENT	Unknown
+ASCII or Unicode string
+0x66a6	0x0102	PR_NEWSFEED_INF O	Unknown Binary data
+
+Item type	Value type	Identifier	Description
+0x66a7	0x001e
+0x001f	PR_INTERNET_NEW SGROUP_NAME	Unknown ASCII or Unicode string
+0x66a8	0x0003	PR_FOLDER_FLAGS	Unknown
+Integer 32-bit signed
+0x66a9	0x0040	PR_LAST_ACCESS_T IME	Unknown Filetime
+0x66aa	0x0003	PR_RESTRICTION_C OUNT	Unknown
+Integer 32-bit signed
+0x66ab	0x0003	PR_CATEG_COUNT	Unknown Integer 32-bit signed
+0x66ac	0x0003	PR_CACHED_COLU MN_COUNT	Unknown
+Integer 32-bit signed
+0x66ad	0x0003	PR_NORMAL_MSG_ W_ATTACH_COUNT	Unknown Integer 32-bit signed
+0x66ae	0x0003	PR_ASSOC_MSG_W_ ATTACH_COUNT	Unknown
+Integer 32-bit signed
+0x66af	0x0003	PR_RECIPIENT_ON_
+NORMAL_MSG_COU NT	Unknown Integer 32-bit signed
+0x66b0	0x0003	PR_RECIPIENT_ON_
+ASSOC_MSG_COUN T	Unknown Integer 32-bit signed
+0x66b1	0x0003	PR_ATTACH_ON_NO RMAL_MSG_COUNT	Unknown Integer 32-bit signed
+0x66b2	0x0003	PR_ATTACH_ON_AS SOC_MSG_COUNT	Unknown
+Integer 32-bit signed
+0x66b3	0x0003	PR_NORMAL_MESS AGE_SIZE	Unknown Integer 32-bit signed
+	0x0014	PR_NORMAL_MESS
+AGE_SIZE_EXTENDE D	Unknown
+Integer 64-bit signed
+0x66b4	0x0003	PR_ASSOC_MESSAG E_SIZE	Unknown
+Integer 32-bit signed
+	0x0014	PR_ASSOC_MESSAG E_SIZE_EXTENDED	Unknown Integer 64-bit signed
+0x66b5	0x001e
+0x001f	PR_FOLDER_PATHN AME	Unknown
+ASCII or Unicode string
+0x66b6	0x0003	PR_OWNER_COUNT	Unknown Integer 32-bit signed
+0x66b7	0x0003	PR_CONTACT_COU NT	Unknown
+Integer 32-bit signed
+
+
+Item type	Value type	Identifier	Description
+0x66c3	0x0003	PR_CODE_PAGE_ID	Unknown Integer 32-bit signed
+0x66c4	0x0003	PR_RETENTION_AG E_LIMIT	Unknown
+Integer 32-bit signed
+0x66c5	0x000b	PR_DISABLE_PERUS ER_READ	Unknown Boolean
+0x66c6	0x0102	PR_INTERNET_PARS E_STATE	Unknown
+Binary data
+0x66c7	0x0102	PR_INTERNET_MESS AGE_INFO	Unknown Binary data
+
+0x66fa	0x0003		Unknown
+Integer 32-bit signed
+
+0x6700	0x001e
+0x001f	PR_PST_PATH	Unknown ASCII or Unicode string
+0x6701	0x000b	PR_PST_REMEMBER _PW	Unknown Boolean
+0x6702	0x0003	PR_OST_ENCRYPTI ON	Unknown Integer 32-bit signed
+0x6703	0x001e
+0x001f	PR_PST_PW_SZ_OL D	Unknown
+ASCII or Unicode string
+0x6704	0x001e
+0x001f	PR_PST_PW_SZ_NE W	Unknown ASCII or Unicode string
+0x6705	0x0003	PR_SORT_LOCALE_I D	Unknown
+Integer 32-bit signed
+
+0x6707	0x001e
+0x001f	PR_URL_NAME	Unknown ASCII or Unicode string
+
+0x6709	0x0040	PR_LOCAL_COMMIT _TIME	Unknown
+Filetime
+0x670a	0x0040	PR_LOCAL_COMMIT _TIME_MAX	Unknown Filetime
+0x670b	0x0003	PR_DELETED_COUN T_TOTAL	Unknown
+Integer 32-bit signed
+0x670c	0x0048	PR_AUTO_RESET	Unknown GUID
+
+0x6710	0x0003	PR_URL_COMP_NA ME_HASH	Unknown
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x6711	0x0003	PR_MSG_FOLDER_T EMPLATE_RES_2	Unknown Integer 32-bit signed
+0x6712	0x0003	PR_RANK	Unknown
+Integer 32-bit signed
+0x6713	0x000b	PR_MSG_FOLDER_T EMPLATE_RES_4	Unknown Boolean
+0x6714	0x000b	PR_MSG_FOLDER_T EMPLATE_RES_5	Unknown Boolean
+0x6715	0x000b	PR_MSG_FOLDER_T EMPLATE_RES_6	Unknown Boolean
+0x6716	0x0102	PR_MSG_FOLDER_T EMPLATE_RES_7	Unknown
+Binary data
+0x6717	0x0102	PR_MSG_FOLDER_T EMPLATE_RES_8	Unknown Binary data
+0x6718	0x0102	PR_MSG_FOLDER_T EMPLATE_RES_9	Unknown
+Binary data
+0x6719	0x001e
+0x001f	PR_MSG_FOLDER_T EMPLATE_RES_10	Unknown ASCII or Unicode string
+0x671a	0x001e
+0x001f	PR_MSG_FOLDER_T EMPLATE_RES_11	Unknown
+ASCII or Unicode string
+0x671b	0x001e
+0x001f	PR_MSG_FOLDER_T EMPLATE_RES_12	Unknown ASCII or Unicode string
+
+0x671e	0x000b	PR_PF_PLATINUM_ HOME_MDB	Unknown Boolean
+0x671f	0x000b	PR_PF_PROXY_REQ UIRED	Unknown Boolean
+0x6720	0x0102	PR_INTERNET_FREE _DOC_INFO	Unknown
+Binary data
+0x6721	0x0003	PR_PF_OVER_HARD _QUOTA_LIMIT	Unknown Integer 32-bit signed
+0x6722	0x0003	PR_PF_MSG_SIZE_LI MIT	Unknown
+Integer 32-bit signed
+
+0x6743	0x0003	PR_CONNECTION_M ODULUS	Unknown Integer 32-bit signed
+0x6744	0x001e
+0x001f	PR_DELIVER_TO_D N	Unknown
+ASCII or Unicode string
+
+0x6746	0x0003	PR_MIME_SIZE	Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x6747	0x0014	PR_FILE_SIZE_EXTE NDED	Unknown Integer 64-bit signed
+0x6748	0x0014	PR_FID	Unknown
+Integer 64-bit signed
+0x6749	0x0014	PR_PARENT_FID	Unknown Integer 64-bit signed
+0x674a	0x0014	PR_MID	Unknown
+Integer 64-bit signed
+0x674b	0x0014	PR_CATEG_ID	Unknown Integer 64-bit signed
+0x674c	0x0014	PR_PARENT_CATEG _ID	Unknown
+Integer 64-bit signed
+0x674d	0x0014	PR_INST_ID	Unknown Integer 64-bit signed
+0x674e	0x0003	PR_INSTANCE_NUM	Unknown
+Integer 32-bit signed
+0x674f	0x0014	PR_ADDRBOOK_MI D	Unknown Integer 64-bit signed
+0x6750	0x0003	PR_ICS_NOTIF	Unknown
+Integer 32-bit signed
+0x6751	0x0003	PR_ARTICLE_NUM_ NEXT	Unknown Integer 32-bit signed
+0x6752	0x0003	PR_IMAP_LAST_AR TICLE_ID	Unknown
+Integer 32-bit signed
+0x6753	0x000b	PR_NOT_822_RENDE RABLE	Unknown Boolean
+
+0x6758	0x0102	PR_LTID	Unknown
+Binary data
+0x6759	0x0102	PR_CN_EXPORT	Unknown Binary data
+0x675a	0x0102	PR_PCL_EXPORT	Unknown
+Binary data
+0x675b	0x1102	PR_CN_MV_EXPORT	Unknown Array of Binary data values
+
+0x6779	0x0003	PR_PF_QUOTA_STY LE	Unknown
+Integer 32-bit signed
+
+0x677b	0x0003	PR_PF_STORAGE_Q UOTA	Unknown Integer 32-bit signed
+Item type	Value type	Identifier	Description
+
+0x6783	0x0003	PR_SEARCH_FLAGS	Unknown Integer 32-bit signed
+
+0x67aa	0x000b	PR_ASSOCIATED	Unknown Boolean
+
+0x67f0	0x0102	PR_PROFILE_SECUR E_MAILBOX	Unknown Binary data
+0x67f1	0x0003		Unknown
+Integer 32-bit signed
+0x67f2	0x0003		Descriptor identifier Integer 32-bit signed
+			Refers to both global and local descriptor
+			identifiers
+0x67f3	0x0003		Unknown
+Integer 32-bit signed
+0x67f4	0x0014	PRQ_ID_SECURE4	Unknown Integer 64-bit signed
+
+0x67ff	0x0003	PR_PST_PASSWORD	Password
+Integer 32-bit signed
+Contains a weak CRC of the password
+3.19.	Message content properties for custom message classes (0x6800 – 0x7bff)
+Item type	Value type	Identifier	Description
+0x6800	0x001e
+0x001f	PR_MAILBEAT_BOU NCE_SERVER	Unknown
+ASCII or Unicode string
+0x6801	0x0040	PR_MAILBEAT_REQ UEST_SENT	Unknown Filetime
+0x6802	0x001e
+0x001f	PR_USENET_SITE_N AME	Unknown
+ASCII or Unicode string
+0x6803	0x0040	PR_MAILBEAT_REQ UEST_RECEIVED	Unknown Filetime
+0x6804	0x0040	PR_MAILBEAT_REQ UEST_PROCESSED	Unknown
+Filetime
+0x6805	0x0003	PR_SHUTOFFQUOTA	Unknown Integer 32-bit signed
+0x6806	0x0040	PR_MAILBEAT_REP	Unknown
+
+Item type	Value type	Identifier	Description
+		LY_SENT	Filetime
+0x6807	0x0040	PR_MAILBEAT_REP LY_SUBMIT	Unknown Filetime
+0x6808	0x0040	PR_MAILBEAT_REP LY_RECEIVED	Unknown
+Filetime
+0x6809	0x0040	PR_MAILBEAT_REP LY_PROCESSED	Unknown Filetime
+
+0x6834	0x0003	PR_VIEW_STYLE	Unknown
+Integer 32-bit signed
+
+0x683a	0x0003	PR_VIEW_MAJORVE RSION	Unknown Integer 32-bit signed
+
+0x6844	0x101e
+0x101f	PR_DELEGATES_DIS PLAY_NAMES	Unknown
+Array of ASCII or Unicode string values
+0x6845	0x1102	PR_DELEGATES_EN TRYIDS	Unknown Array of Binary data values
+
+0x6847	0x0003	PR_FREEBUSY_STA RT_RANGE	Unknown
+Integer 32-bit signed
+0x6848	0x0003	PR_FREEBUSY_END _RANGE	Unknown Integer 32-bit signed
+0x6849	0x001e
+0x001f	PR_FREEBUSY_EMA IL_ADDRESS	Unknown
+ASCII or Unicode string
+
+0x684f	0x1003	PR_FREEBUSY_ALL _MONTHS	Unknown Array of Integer 32-bit signed values
+0x6850	0x1102	PR_FREEBUSY_ALL
+_EVENTS	Unknown
+Array of Binary data values
+0x6851	0x1003	PR_FREEBUSY_TEN TATIVE_MONTHS	Unknown Array of Integer 32-bit signed values
+0x6852	0x1102	PR_FREEBUSY_TEN TATIVE_EVENTS	Unknown
+Array of Binary data values
+0x6853	0x1003	PR_FREEBUSY_BUS Y_MONTHS	Unknown Array of Integer 32-bit signed values
+0x6854	0x1102	PR_FREEBUSY_BUS Y_EVENTS	Unknown
+Array of Binary data values
+0x6855	0x1003	PR_FREEBUSY_OOF _MONTHS	Unknown Array of Integer 32-bit signed values
+
+Item type	Value type	Identifier	Description
+0x6856	0x1102	PR_FREEBUSY_OOF _EVENTS	Unknown Array of Binary data values
+
+0x6868	0x0040	PR_FREEBUSY_LAS T_MODIFIED	Unknown
+Filetime
+0x6869	0x0003	PR_FREEBUSY_NUM _MONTHS	Unknown Integer 32-bit signed
+
+0x686b	0x1003	PR_DELEGATES_SE E_PRIVATE	Unknown
+Array of Integer 32-bit signed values
+0x686c	0x0102	PR_PERSONAL_FRE EBUSY	Unknown
+Binary data
+See notes below
+0x686d	0x000b	PR_PROCESS_MEETI NG_REQUESTS	Unknown Boolean
+0x686e	0x000b	PR_DECLINE_RECURRING_MEETING_R EQUESTS	Unknown Boolean
+0x686f	0x000b	PR_DECLINE_CONFLICTING_MEETING_R EQUESTS	Unknown Boolean
+
+0x6909	0x0003		Unknown
+Integer 32-bit signed
+
+0x6f02			Secure HTML Body
+
+0x6f04			Secure Text Body
+
+0x7001	0x0102	PR_VD_BINARY	Unknown Binary data
+0x7002	0x001e
+0x001f	PR_VD_STRINGS	Unknown
+ASCII or Unicode string
+0x7003	0x0003	PR_VD_FLAGS	Unknown Integer 32-bit signed
+0x7004	0x0102	PR_VD_LINK_TO	Unknown
+Binary data
+0x7005	0x0102	PR_VD_VIEW_FOLD ER	Unknown Binary data
+0x7006	0x001e
+0x001f	PR_VD_NAME	Unknown
+ASCII or Unicode string
+Item type	Value type	Identifier	Description
+0x7007	0x0003	PR_VD_VERSION	Unknown Integer 32-bit signed
+3.20.	Non-transmittable properties for custom message classes (0x7c00 – 0x7fff)
+Item type	Value type	Identifier	Description
+0x7c00	0x001e
+0x001f	PR_FAV_DISPLAY_ NAME_A	Unknown
+ASCII or Unicode string
+
+0x7c02	0x0102	PR_FAV_PUBLIC_SO URCE_KEY	Unknown Binary data
+
+0x7c04	0x0102	PR_OST_OSTID	Unknown
+Binary data
+Contains GUID
+
+0x7c06	0x101e
+0x101f		Unknown
+Array of ASCII or Unicode string values
+0x7c07			Top of folders RecID
+
+0x7c0a	0x000b	PR_STORE_SLOWLI NK	Unknown Boolean
+
+0x7c0c	0x0003		Unknown
+Integer 32-bit signed
+0x7c0d	0x0014		Unknown Integer 64-bit signed
+
+0x7d01	0x0003	PR_FAV_AUTOSUBF OLDERS	Unknown
+Integer 32-bit signed
+	0x000b	PR_PROCESSED	Unknown Boolean
+0x7d02	0x0102	PR_FAV_PARENT_S OURCE_KEY	Unknown
+Binary data
+0x7d03	0x0003	PR_FAV_LEVEL_MA SK	Unknown Integer 32-bit signed
+
+0x7d07	0x0003	PR_FAV_INHERIT_A UTO	Unknown
+Integer 32-bit signed
+Item type	Value type	Identifier	Description
+0x7d08	0x0102	PR_FAV_DEL_SUBS	Unknown Binary data
+
+0x7ffa	0x0003	PR_ATTACHMENT_L INKID	Unknown
+Integer 32-bit signed
+0x7ffb	0x0040	PR_EXCEPTION_STA RTTIME	Unknown Filetime
+0x7ffc	0x0040	PR_EXCEPTION_EN DTIME	Unknown
+Filetime
+0x7ffd	0x0003	PR_ATTACHMENT_F LAGS	Unknown Integer 32-bit signed
+0x7ffe	0x000b	PR_ATTACHMENT_ HIDDEN	Unknown Boolean
+
+
+3.21.	Named properties (0x8000 – 0xfffe)
+Note that the actual meaning of these item types can be overwritten by the name-to-id map.
+Item type	Value type	Identifier	Description
+0x8001	0x000b	PR_EMS_AB_DISPLA Y_NAME_OVERRIDE	Unknown Boolean
+
+0x8003	0x1102	PR_EMS_AB_CA_CE RTIFICATE	Unknown
+Array of Binary data values
+0x8004	0x001e
+0x001f	PR_EMS_AB_FOLDE R_PATHNAME	Unknown ASCII or Unicode string
+0x8005	0x000d	PR_EMS_AB_MANA GER	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_MANA GER_T	Unknown ASCII or Unicode string
+0x8006	0x000d	PR_EMS_AB_HOME_ MDB_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_HOME_ MDB	Unknown ASCII or Unicode string
+0x8007	0x000d	PR_EMS_AB_HOME_ MTA_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_HOME_ MTA	Unknown ASCII or Unicode string
+0x8008	0x000d	PR_EMS_AB_IS_ME MBER_OF_DL	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_IS_ME MBER_OF_DL_T	Unknown ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x8009	0x000d	PR_EMS_AB_MEMBE R	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_MEMBE R_T	Unknown
+ASCII or Unicode string
+0x800a	0x001e
+0x001f	PR_EMS_AB_AUTOR EPLY_MESSAGE	Unknown ASCII or Unicode string
+0x800b	0x000b	PR_EMS_AB_AUTOR EPLY	Unknown Boolean
+0x800c	0x000d	PR_EMS_AB_OWNE R_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_OWNE R	Unknown
+ASCII or Unicode string
+0x800d	0x000d	PR_EMS_AB_KM_SE RVER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_KM_SE RVER	Unknown
+ASCII or Unicode string
+0x800e	0x000d	PR_EMS_AB_REPOR TS	Unknown
+Embedded object
+0x800f	0x101e
+0x101f	PR_EMS_AB_PROXY _ADDRESSES	Unknown
+Array of ASCII or Unicode string values
+0x8010	0x0102	PR_EMS_AB_HELP_ DATA32	Unknown Binary data
+0x8011	0x001e
+0x001f	PR_EMS_AB_TARGE T_ADDRESS	Unknown
+ASCII or Unicode string
+0x8012	0x101e
+0x101f	PR_EMS_AB_TELEP HONE_NUMBER	Unknown Array of ASCII or Unicode string values
+0x8013	0x0102	PR_EMS_AB_NT_SE
+CURITY_DESCRIPTO R	Unknown
+Binary data
+0x8014	0x000d	PR_EMS_AB_HOME_ MDB_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_HOME_ MDB_BL	Unknown Array of ASCII or Unicode string values
+0x8015	0x000d	PR_EMS_AB_PUBLIC _DELEGATES	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_PUBLIC _DELEGATES_T	Unknown ASCII or Unicode string
+0x8016	0x0102	PR_EMS_AB_CERTIF
+ICATE_REVOCATIO N_LIST	Unknown
+Binary data
+0x8017	0x0102	PR_EMS_AB_ADDRE SS_ENTRY_DISPLAY	Unknown
+Binary data
+
+Item type	Value type	Identifier	Description
+		_TABLE
+0x8018	0x0102	PR_EMS_AB_ADDRE SS_SYNTAX	Unknown Binary data
+
+0x8023	0x0102	PR_EMS_AB_BUSINE SS_ROLES	Unknown
+Binary data
+0x8024	0x000d	PR_EMS_AB_OWNE R_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_OWNE R_BL	Unknown
+Array of ASCII or Unicode string values
+0x8025	0x1102	PR_EMS_AB_CROSS _CERTIFICATE_PAIR	Unknown Array of Binary data values
+0x8026	0x1102	PR_EMS_AB_AUTHO
+RITY_REVOCATION _LIST	Unknown
+Array of Binary data values
+0x8027	0x0102	PR_EMS_AB_ASSOC _NT_ACCOUNT	Unknown
+Binary data
+0x8028	0x0040	PR_EMS_AB_EXPIR ATION_TIME	Unknown Filetime
+0x8029	0x0003	PR_EMS_AB_USN_CHANGED	Unknown
+Integer 32-bit signed
+
+0x802d	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_1	Unknown ASCII or Unicode string
+0x802e	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_2	Unknown
+ASCII or Unicode string
+0x802f	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_3	Unknown ASCII or Unicode string
+0x8030	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_4	Unknown
+ASCII or Unicode string
+0x8031	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_5	Unknown ASCII or Unicode string
+0x8032	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_6	Unknown
+ASCII or Unicode string
+0x8033	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_7	Unknown ASCII or Unicode string
+0x8034	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_8	Unknown
+ASCII or Unicode string
+0x8035	0x001e
+0x001f	PR_EMS_AB_EXTEN SION_ATTRIBUTE_9	Unknown ASCII or Unicode string
+0x8036	0x001e	PR_EMS_AB_EXTEN	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	SION_ATTRIBUTE_1 0	ASCII or Unicode string
+0x8037	0x1102	PR_EMS_AB_SECURI TY_PROTOCOL	Unknown
+Array of Binary data values
+0x8038	0x000d	PR_EMS_AB_PF_CO NTACTS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_PF_CO NTACTS	Unknown
+ASCII or Unicode string
+
+0x803a	0x0102	PR_EMS_AB_HELP_ DATA16	Unknown Binary data
+0x803b	0x001e
+0x001f	PR_EMS_AB_HELP_F ILE_NAME	Unknown
+ASCII or Unicode string
+0x803c	0x000d	PR_EMS_AB_OBJ_DI ST_NAME_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_OBJ_DI ST_NAME	Unknown
+ASCII or Unicode string
+0x803d	0x001e
+0x001f	PR_EMS_AB_ENCRY
+PT_ALG_SELECTED_ OTHER	Unknown ASCII or Unicode string
+0x803e	0x001e
+0x001f	PR_EMS_AB_AUTOR EPLY_SUBJECT	Unknown ASCII or Unicode string
+0x803f	0x000d	PR_EMS_AB_HOME_ PUBLIC_SERVER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_HOME_ PUBLIC_SERVER	Unknown ASCII or Unicode string
+0x8040	0x101e
+0x101f	PR_EMS_AB_ENCRY PT_ALG_LIST_NA	Unknown
+ASCII or Unicode string
+0x8041	0x101e
+0x101f	PR_EMS_AB_ENCRY PT_ALG_LIST_OTHE R	Unknown ASCII or Unicode string
+0x8042	0x001e
+0x001f	PR_EMS_AB_IMPOR TED_FROM	Unknown ASCII or Unicode string
+0x8043	0x001e
+0x001f	PR_EMS_AB_ENCRY
+PT_ALG_SELECTED_ NA	Unknown
+ASCII or Unicode string
+0x8044	0x0003	PR_EMS_AB_ACCES S_CATEGORY	Unknown
+Integer 32-bit signed
+0x8045	0x0102	PR_EMS_AB_ACTIV ATION_SCHEDULE	Unknown Binary data
+0x8046	0x0003	PR_EMS_AB_ACTIV ATION_STYLE	Unknown
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x8047	0x0102	PR_EMS_AB_ADDRE
+SS_ENTRY_DISPLAY
+_TABLE_MSDOS	Unknown Binary data
+0x8048	0x001e
+0x001f	PR_EMS_AB_ADDRE SS_TYPE	Unknown ASCII or Unicode string
+0x8049	0x001e
+0x001f	PR_EMS_AB_ADMD	Unknown
+ASCII or Unicode string
+0x804a	0x001e
+0x001f	PR_EMS_AB_ADMIN _DESCRIPTION	Unknown ASCII or Unicode string
+0x804b	0x001e
+0x001f	PR_EMS_AB_ADMIN _DISPLAY_NAME	Unknown
+ASCII or Unicode string
+0x804c	0x001e
+0x001f	PR_EMS_AB_ADMIN _EXTENSION_DLL	Unknown ASCII or Unicode string
+0x804d	0x000d	PR_EMS_AB_ALIASE D_OBJECT_NAME_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_ALIASE D_OBJECT_NAME	Unknown ASCII or Unicode string
+0x804e	0x000d	PR_EMS_AB_ALT_R ECIPIENT_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_ALT_R ECIPIENT	Unknown ASCII or Unicode string
+0x804f	0x000d	PR_EMS_AB_ALT_R ECIPIENT_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_ALT_R ECIPIENT_BL	Unknown Array of ASCII or Unicode string values
+0x8050	0x0102	PR_EMS_AB_ANCES TOR_ID	Unknown
+Binary data
+0x8051	0x000d	PR_EMS_AB_ASSOC _REMOTE_DXA_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_ASSOC _REMOTE_DXA	Unknown
+Array of ASCII or Unicode string values
+0x8052	0x0003	PR_EMS_AB_ASSOCI ATION_LIFETIME	Unknown Integer 32-bit signed
+0x8053	0x000d	PR_EMS_AB_AUTH_ ORIG_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_AUTH_ ORIG_BL	Unknown Array of ASCII or Unicode string values
+0x8054	0x001e
+0x001f	PR_EMS_AB_AUTHO RIZED_DOMAIN	Unknown
+ASCII or Unicode string
+0x8055	0x0102	PR_EMS_AB_AUTHO RIZED_PASSWORD	Unknown Bianry data
+
+Item type	Value type	Identifier	Description
+0x8056	0x001e
+0x001f	PR_EMS_AB_AUTHO RIZED_USER	Unknown ASCII or Unicode string
+0x8057	0x101e
+0x101f	PR_EMS_AB_BUSINE SS_CATEGORY	Unknown
+Array of ASCII or Unicode string values
+0x8058	0x000d	PR_EMS_AB_CAN_C REATE_PF_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_C REATE_PF	Unknown
+Array of ASCII or Unicode string values
+0x8059	0x000d	PR_EMS_AB_CAN_C REATE_PF_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_C REATE_PF_BL	Unknown
+Array of ASCII or Unicode string values
+0x805a	0x000d	PR_EMS_AB_CAN_C REATE_PF_DL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_C REATE_PF_DL	Unknown
+Array of ASCII or Unicode string values
+0x805b	0x000d	PR_EMS_AB_CAN_C REATE_PF_DL_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_C REATE_PF_DL_BL	Unknown
+Array of ASCII or Unicode string values
+0x805c	0x000d	PR_EMS_AB_CAN_N OT_CREATE_PF_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_N OT_CREATE_PF	Unknown
+Array of ASCII or Unicode string values
+0x805d	0x000d	PR_EMS_AB_CAN_N
+OT_CREATE_PF_BL_ O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_N OT_CREATE_PF_BL	Unknown Array of ASCII or Unicode string values
+0x805e	0x000d	PR_EMS_AB_CAN_N
+OT_CREATE_PF_DL_ O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_N OT_CREATE_PF_DL	Unknown
+Array of ASCII or Unicode string values
+0x805f	0x000d	PR_EMS_AB_CAN_N
+OT_CREATE_PF_DL_ BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_CAN_N
+OT_CREATE_PF_DL_ BL	Unknown Array of ASCII or Unicode string values
+0x8060	0x000b	PR_EMS_AB_CAN_P RESERVE_DNS	Unknown Boolean
+
+Item type	Value type	Identifier	Description
+0x8061	0x0003	PR_EMS_AB_CLOCK _ALERT_OFFSET	Unknown Integer 32-bit signed
+0x8062	0x000b	PR_EMS_AB_CLOCK _ALERT_REPAIR	Unknown Boolean
+0x8063	0x0003	PR_EMS_AB_CLOCK _WARNING_OFFSET	Unknown Integer 32-bit signed
+0x8064	0x000b	PR_EMS_AB_CLOCK _WARNING_REPAIR	Unknown Boolean
+0x8065	0x001e
+0x001f	PR_EMS_AB_COMPU TER_NAME	Unknown ASCII or Unicode string
+0x8066	0x101e
+0x101f	PR_EMS_AB_CONNE CTED_DOMAINS	Unknown
+Array of ASCII or Unicode string values
+0x8067	0x0003	PR_EMS_AB_CONTA INER_INFO	Unknown Integer 32-bit signed
+0x8068	0x0003	PR_EMS_AB_COST	Unknown
+Integer 32-bit signed
+0x8069	0x001e
+0x001f	PR_EMS_AB_COUNT RY_NAME	Unknown ASCII or Unicode string
+0x806a	0x0003	PR_EMS_AB_DELIV_ CONT_LENGTH	Unknown
+Integer 32-bit signed
+0x806b	0x1102	PR_EMS_AB_DELIV_ EITS	Unknown Array of Binary data values
+0x806c	0x1102	PR_EMS_AB_DELIV_ EXT_CONT_TYPES	Unknown
+Array of Binary data values
+0x806d	0x000b	PR_EMS_AB_DELIVE R_AND_REDIRECT	Unknown Boolean
+0x806e	0x0003	PR_EMS_AB_DELIVE RY_MECHANISM	Unknown
+Integer 32-bit signed
+0x806f	0x101e
+0x101f	PR_EMS_AB_DESCRI PTION	Unknown Array of ASCII or Unicode string values
+0x8070	0x101e
+0x101f	PR_EMS_AB_DESTIN ATION_INDICATOR	Unknown
+Array of ASCII or Unicode string values
+0x8071	0x001e
+0x001f	PR_EMS_AB_DIAGN OSTIC_REG_KEY	Unknown ASCII or Unicode string
+0x8072	0x000d	PR_EMS_AB_DL_ME
+M_REJECT_PERMS_ BL_O	Unknown
+Embedded object
+0x8072	0x101e
+0x101f	PR_EMS_AB_DL_ME
+M_REJECT_PERMS_ BL	Unknown
+Array of ASCII or Unicode string values
+0x8073	0x000d	PR_EMS_AB_DL_ME M_SUBMIT_PERMS_	Unknown
+Embedded object
+
+Item type	Value type	Identifier	Description
+		BL_O
+0x8073	0x101e
+0x101f	PR_EMS_AB_DL_ME
+M_SUBMIT_PERMS_ BL	Unknown Array of ASCII or Unicode string values
+0x8074	0x1102	PR_EMS_AB_DL_ME MBER_RULE	Unknown Array of Binary data values
+0x8075	0x000d	PR_EMS_AB_DOMAI
+N_DEF_ALT_RECIP_ O	Unknown
+Embedded object
+0x8075	0x001e
+0x001f	PR_EMS_AB_DOMAI N_DEF_ALT_RECIP	Unknown
+ASCII or Unicode string
+0x8076	0x001e
+0x001f	PR_EMS_AB_DOMAI N_NAME	Unknown ASCII or Unicode string
+0x8077	0x0102	PR_EMS_AB_DSA_SI GNATURE	Unknown
+Binary data
+0x8078	0x000b	PR_EMS_AB_DXA_A DMIN_COPY	Unknown Boolean
+0x8079	0x000b	PR_EMS_AB_DXA_A DMIN_FORWARD	Unknown Boolean
+0x807a	0x0003	PR_EMS_AB_DXA_A DMIN_UPDATE	Unknown Integer 32-bit signed
+0x807b	0x000b	PR_EMS_AB_DXA_A PPEND_REQCN	Unknown Boolean
+0x807c	0x000d	PR_EMS_AB_DXA_C
+ONF_CONTAINER_LI ST_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_DXA_C
+ONF_CONTAINER_LI ST	Unknown Array of ASCII or Unicode string values
+0x807d	0x0040	PR_EMS_AB_DXA_C ONF_REQ_TIME	Unknown Filetime
+0x807e	0x001e
+0x001f	PR_EMS_AB_DXA_C ONF_SEQ	Unknown
+ASCII or Unicode string
+0x807f	0x0003	PR_EMS_AB_DXA_C ONF_SEQ_USN	Unknown Integer 32-bit signed
+0x8080	0x0003	PR_EMS_AB_DXA_E XCHANGE_OPTIONS	Unknown
+Integer 32-bit signed
+0x8081	0x000b	PR_EMS_AB_DXA_E XPORT_NOW	Unknown Boolean
+0x8082	0x0003	PR_EMS_AB_DXA_F LAGS	Unknown
+Integer 32-bit signed
+0x8083	0x001e	PR_EMS_AB_DXA_I	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	MP_SEQ	ASCII or Unicode string
+0x8084	0x0040	PR_EMS_AB_DXA_I MP_SEQ_TIME	Unknown Filetime
+0x8085	0x0003	PR_EMS_AB_DXA_I MP_SEQ_USN	Unknown
+Integer 32-bit signed
+0x8086	0x000b	PR_EMS_AB_DXA_I MPORT_NOW	Unknown Boolean
+0x8087	0x101e
+0x101f	PR_EMS_AB_DXA_I N_TEMPLATE_MAP	Unknown
+Array of ASCII or Unicode string values
+0x8088	0x000d	PR_EMS_AB_DXA_L OCAL_ADMIN_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_DXA_L OCAL_ADMIN	Unknown
+ASCII or Unicode string
+0x8089	0x0003	PR_EMS_AB_DXA_L OGGING_LEVEL	Unknown Integer 32-bit signed
+0x808a	0x001e
+0x001f	PR_EMS_AB_DXA_N
+ATIVE_ADDRESS_T YPE	Unknown
+ASCII or Unicode string
+0x808b	0x101e
+0x101f	PR_EMS_AB_DXA_O UT_TEMPLATE_MAP	Unknown
+Array of ASCII or Unicode string values
+0x808c	0x001e
+0x001f	PR_EMS_AB_DXA_P ASSWORD	Unknown ASCII or Unicode string
+0x808d	0x0003	PR_EMS_AB_DXA_P
+REV_EXCHANGE_OP TIONS	Unknown
+Integer 32-bit signed
+0x808e	0x000b	PR_EMS_AB_DXA_P
+REV_EXPORT_NATI VE_ONLY	Unknown Boolean
+0x808f	0x0003	PR_EMS_AB_DXA_P
+REV_IN_EXCHANGE _SENSITIVITY	Unknown
+Integer 32-bit signed
+0x8090	0x000d	PR_EMS_AB_DXA_P
+REV_REMOTE_ENTR IES_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_DXA_P
+REV_REMOTE_ENTR
+IES	Unknown
+ASCII or Unicode string
+0x8091	0x0003	PR_EMS_AB_DXA_P
+REV_REPLICATION_ SENSITIVITY	Unknown
+Integer 32-bit signed
+0x8092	0x0003	PR_EMS_AB_DXA_P
+REV_TEMPLATE_OP TIONS	Unknown
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x8093	0x0003	PR_EMS_AB_DXA_P REV_TYPES	Unknown Integer 32-bit signed
+0x8094	0x001e
+0x001f	PR_EMS_AB_DXA_R ECIPIENT_CP	Unknown
+ASCII or Unicode string
+0x8095	0x000d	PR_EMS_AB_DXA_R EMOTE_CLIENT_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_DXA_R EMOTE_CLIENT	Unknown
+ASCII or Unicode string
+0x8096	0x001e
+0x001f	PR_EMS_AB_DXA_R EQ_SEQ	Unknown ASCII or Unicode string
+0x8097	0x0040	PR_EMS_AB_DXA_R EQ_SEQ_TIME	Unknown
+Filetime
+0x8098	0x0003	PR_EMS_AB_DXA_R EQ_SEQ_USN	Unknown Integer 32-bit signed
+0x8099	0x001e
+0x001f	PR_EMS_AB_DXA_R EQNAME	Unknown
+ASCII or Unicode string
+0x809a	0x001e
+0x001f	PR_EMS_AB_DXA_S VR_SEQ	Unknown ASCII or Unicode string
+0x809b	0x0040	PR_EMS_AB_DXA_S VR_SEQ_TIME	Unknown
+Filetime
+0x809c	0x0003	PR_EMS_AB_DXA_S VR_SEQ_USN	Unknown Integer 32-bit signed
+0x809d	0x0003	PR_EMS_AB_DXA_T ASK	Unknown
+Integer 32-bit signed
+0x809e	0x0003	PR_EMS_AB_DXA_T EMPLATE_OPTIONS	Unknown Integer 32-bit signed
+0x809f	0x0040	PR_EMS_AB_DXA_T
+EMPLATE_TIMESTA MP	Unknown
+Filetime
+0x80a0	0x0003	PR_EMS_AB_DXA_T YPES	Unknown
+Integer 32-bit signed
+0x80a1	0x000d	PR_EMS_AB_DXA_U
+NCONF_CONTAINER _LIST_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_DXA_U
+NCONF_CONTAINER _LIST	Unknown Array of ASCII or Unicode string values
+0x80a2	0x0003	PR_EMS_AB_ENCAP SULATION_METHOD	Unknown Integer 32-bit signed
+0x80a3	0x000b	PR_EMS_AB_ENCRY PT	Unknown Boolean
+0x80a4	0x000b	PR_EMS_AB_EXPAN	Unknown
+
+Item type	Value type	Identifier	Description
+		D_DLS_LOCALLY	Boolean
+0x80a5	0x000d	PR_EMS_AB_EXPOR T_CONTAINERS_O	Unknown Boolean
+0x80a5	0x101e
+0x101f	PR_EMS_AB_EXPOR T_CONTAINERS	Unknown
+Array of ASCII or Unicode string values
+0x80a6	0x000b	PR_EMS_AB_EXPOR
+T_CUSTOM_RECIPIE NTS	Unknown Boolean
+0x80a7	0x000b	PR_EMS_AB_EXTEN
+DED_CHARS_ALLO WED	Unknown Boolean
+0x80a8	0x1102	PR_EMS_AB_EXTEN SION_DATA	Unknown Array of Binary data values
+0x80a9	0x101e
+0x101f	PR_EMS_AB_EXTEN SION_NAME	Unknown
+Array of ASCII or Unicode string values
+0x80aa	0x101e
+0x101f	PR_EMS_AB_EXTEN
+SION_NAME_INHERI TED	Unknown Array of ASCII or Unicode string values
+0x80ab	0x1102	PR_EMS_AB_FACSI
+MILE_TELEPHONE_ NUMBER	Unknown Array of Binary data values
+0x80ac	0x0102	PR_EMS_AB_FILE_V ERSION	Unknown Binary data
+0x80ad	0x000b	PR_EMS_AB_FILTER
+_LOCAL_ADDRESSE
+S	Unknown Boolean
+0x80ae	0x000d	PR_EMS_AB_FOLDE RS_CONTAINER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_FOLDE RS_CONTAINER	Unknown ASCII or Unicode string
+0x80af	0x0003	PR_EMS_AB_GARBA GE_COLL_PERIOD	Unknown
+Integer 32-bit signed
+0x80b0	0x001e
+0x001f	PR_EMS_AB_GATE WAY_LOCAL_CRED	Unknown ASCII or Unicode string
+0x80b1	0x001e
+0x001f	PR_EMS_AB_GATE WAY_LOCAL_DESIG	Unknown
+ASCII or Unicode string
+0x80b2	0x101e
+0x101f	PR_EMS_AB_GATE WAY_PROXY	Unknown Array of ASCII or Unicode string value
+0x80b3	0x0102	PR_EMS_AB_GATE
+WAY_ROUTING_TR EE	Unknown
+Binary data
+0x80b4	0x0040	PR_EMS_AB_GWAR	Unknown
+
+Item type	Value type	Identifier	Description
+		T_LAST_MODIFIED	Filetime
+0x80b5	0x000d	PR_EMS_AB_HAS_F
+ULL_REPLICA_NCS_ O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_HAS_F ULL_REPLICA_NCS	Unknown Array of ASCII or Unicode string value
+0x80b6	0x000d	PR_EMS_AB_HAS_M ASTER_NCS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_HAS_M ASTER_NCS	Unknown Array of ASCII or Unicode string value
+0x80b7	0x0003	PR_EMS_AB_HEURIS TICS	Unknown
+Integer 32-bit signed
+0x80b8	0x000b	PR_EMS_AB_HIDE_D L_MEMBERSHIP	Unknown Boolean
+0x80b9	0x000b	PR_EMS_AB_HIDE_F
+ROM_ADDRESS_BO OK	Unknown Boolean
+0x80ba	0x000d	PR_EMS_AB_IMPOR T_CONTAINER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_IMPOR T_CONTAINER	Unknown ASCII or Unicode string
+0x80bb	0x0003	PR_EMS_AB_IMPOR T_SENSITIVITY	Unknown
+Integer 32-bit signed
+0x80bc	0x000d	PR_EMS_AB_INBOU ND_SITES_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_INBOU ND_SITES	Unknown
+Array of ASCII or Unicode string value
+0x80bd	0x0003	PR_EMS_AB_INSTA NCE_TYPE	Unknown Integer 32-bit signed
+0x80be	0x101e
+0x101f	PR_EMS_AB_INTER
+NATIONAL_ISDN_N UMBER	Unknown
+Array of ASCII or Unicode string value
+0x80bf	0x0102	PR_EMS_AB_INVOC ATION_ID	Unknown
+Binary data
+0x80c0	0x000b	PR_EMS_AB_IS_DEL ETED	Unknown Boolean
+0x80c1	0x000b	PR_EMS_AB_IS_SIN GLE_VALUED	Unknown Boolean
+0x80c2	0x1102	PR_EMS_AB_KCC_S TATUS	Unknown Array of Binary data values
+0x80c3	0x101e
+0x101f	PR_EMS_AB_KNOW LEDGE_INFORMATI	Unknown
+Array of ASCII or Unicode string value
+
+Item type	Value type	Identifier	Description
+		ON
+0x80c4	0x0003	PR_EMS_AB_LINE_ WRAP	Unknown Integer 32-bit signed
+0x80c5	0x0003	PR_EMS_AB_LINK_I D	Unknown
+Integer 32-bit signed
+0x80c6	0x001e
+0x001f	PR_EMS_AB_LOCAL _BRIDGE_HEAD	Unknown ASCII or Unicode string
+0x80c7	0x001e
+0x001f	PR_EMS_AB_LOCAL
+_BRIDGE_HEAD_AD
+DRESS	Unknown
+ASCII or Unicode string
+0x80c8	0x000b	PR_EMS_AB_LOCAL _INITIAL_TURN	Unknown Boolean
+0x80c9	0x000d	PR_EMS_AB_LOCAL _SCOPE_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_LOCAL _SCOPE	Unknown
+Array of ASCII or Unicode string value
+0x80ca	0x001e
+0x001f	PR_EMS_AB_LOG_FI LENAME	Unknown ASCII or Unicode string
+0x80cb	0x0003	PR_EMS_AB_LOG_R
+OLLOVER_INTERVA L	Unknown
+Integer 32-bit signed
+0x80cc	0x000b	PR_EMS_AB_MAINT
+AIN_AUTOREPLY_H ISTORY	Unknown Boolean
+0x80cd	0x0003	PR_EMS_AB_MAPI_ DISPLAY_TYPE	Unknown
+Integer 32-bit signed
+0x80ce	0x0003	PR_EMS_AB_MAPI_I D	Unknown Integer 32-bit signed
+0x80cf	0x0003	PR_EMS_AB_MDB_B ACKOFF_INTERVAL	Unknown
+Integer 32-bit signed
+0x80d0	0x0003	PR_EMS_AB_MDB_M
+SG_TIME_OUT_PERI OD	Unknown Integer 32-bit signed
+0x80d1	0x0003	PR_EMS_AB_MDB_O VER_QUOTA_LIMIT	Unknown Integer 32-bit signed
+0x80d2	0x0003	PR_EMS_AB_MDB_S TORAGE_QUOTA	Unknown
+Integer 32-bit signed
+0x80d3	0x0003	PR_EMS_AB_MDB_U NREAD_LIMIT	Unknown Integer 32-bit signed
+0x80d4	0x000b	PR_EMS_AB_MDB_U SE_DEFAULTS	Unknown Boolean
+0x80d5	0x000b	PR_EMS_AB_MESSA	Unknown
+
+Item type	Value type	Identifier	Description
+		GE_TRACKING_ENA BLED	Boolean
+0x80d6	0x000b	PR_EMS_AB_MONIT OR_CLOCK	Unknown Boolean
+0x80d7	0x000b	PR_EMS_AB_MONIT OR_SERVERS	Unknown Boolean
+0x80d8	0x000b	PR_EMS_AB_MONIT OR_SERVICES	Unknown Boolean
+0x80d9	0x000d	PR_EMS_AB_MONIT
+ORED_CONFIGURAT IONS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_MONIT
+ORED_CONFIGURAT IONS	Unknown Array of ASCII or Unicode string value
+0x80da	0x000d	PR_EMS_AB_MONIT ORED_SERVERS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_MONIT ORED_SERVERS	Unknown
+Array of ASCII or Unicode string value
+0x80db	0x101e
+0x101f	PR_EMS_AB_MONIT ORED_SERVICES	Unknown Array of ASCII or Unicode string value
+0x80dc	0x0003	PR_EMS_AB_MONIT
+ORING_ALERT_DEL AY	Unknown
+Integer 32-bit signed
+0x80dd	0x0003	PR_EMS_AB_MONIT
+ORING_ALERT_UNI TS	Unknown
+Integer 32-bit signed
+0x80de	0x0003	PR_EMS_AB_MONITORING_AVAILABILITY_STYLE	Unknown
+Integer 32-bit signed
+0x80df	0x0102	PR_EMS_AB_MONIT
+ORING_AVAILABILI TY_WINDOW	Unknown
+Binary data
+0x80e0	0x000d	PR_EMS_AB_MONIT
+ORING_CACHED_VI A_MAIL_O	Unknown
+Embedded object
+0x80e0	0x101e
+0x101f	PR_EMS_AB_MONIT
+ORING_CACHED_VI A_MAIL	Unknown
+Array of ASCII or Unicode string value
+0x80e1	0x000d	PR_EMS_AB_MONIT
+ORING_CACHED_VI A_RPC_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_MONIT ORING_CACHED_VI	Unknown
+Array of ASCII or Unicode string value
+
+Item type	Value type	Identifier	Description
+		A_RPC
+0x80e2	0x1102	PR_EMS_AB_MONIT
+ORING_ESCALATIO
+N_PROCEDURE	Unknown Array of Binary data values
+0x80e3	0x0003	PR_EMS_AB_MONIT
+ORING_HOTSITE_PO LL_INTERVAL	Unknown Integer 32-bit signed
+0x80e4	0x0003	PR_EMS_AB_MONIT
+ORING_HOTSITE_PO LL_UNITS	Unknown Integer 32-bit signed
+0x80e5	0x0003	PR_EMS_AB_MONIT
+ORING_MAIL_UPDA TE_INTERVAL	Unknown Integer 32-bit signed
+0x80e6	0x0003	PR_EMS_AB_MONIT
+ORING_MAIL_UPDA TE_UNITS	Unknown Integer 32-bit signed
+0x80e7	0x0003	PR_EMS_AB_MONIT
+ORING_NORMAL_PO LL_INTERVAL	Unknown Integer 32-bit signed
+0x80e8	0x0003	PR_EMS_AB_MONIT
+ORING_NORMAL_PO LL_UNITS	Unknown Integer 32-bit signed
+0x80e9	0x000d	PR_EMS_AB_MONIT
+ORING_RECIPIENTS _O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_MONIT ORING_RECIPIENTS	Unknown Array of ASCII or Unicode string value
+0x80ea	0x000d	PR_EMS_AB_MONITORING_RECIPIENTS _NDR_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_MONIT
+ORING_RECIPIENTS _NDR	Unknown
+Array of ASCII or Unicode string value
+0x80eb	0x0003	PR_EMS_AB_MONITORING_RPC_UPDATE_INTERVAL	Unknown
+Integer 32-bit signed
+0x80ec	0x0003	PR_EMS_AB_MONIT
+ORING_RPC_UPDAT E_UNITS	Unknown
+Integer 32-bit signed
+0x80ed	0x0003	PR_EMS_AB_MONIT
+ORING_WARNING_D ELAY	Unknown
+Integer 32-bit signed
+0x80ee	0x0003	PR_EMS_AB_MONIT ORING_WARNING_U	Unknown
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+		NITS
+0x80ef	0x001e
+0x001f	PR_EMS_AB_MTA_L OCAL_CRED	Unknown ASCII or Unicode string
+0x80f0	0x001e
+0x001f	PR_EMS_AB_MTA_L OCAL_DESIG	Unknown
+ASCII or Unicode string
+0x80f1	0x0102	PR_EMS_AB_N_ADD RESS	Unknown Binary data
+0x80f2	0x0003	PR_EMS_AB_N_ADD RESS_TYPE	Unknown
+Integer 32-bit signed
+0x80f3	0x001e
+0x001f	PR_EMS_AB_NT_MA CHINE_NAME	Unknown ASCII or Unicode string
+0x80f4	0x0003	PR_EMS_AB_NUM_O F_OPEN_RETRIES	Unknown
+Integer 32-bit signed
+0x80f5	0x0003	PR_EMS_AB_NUM_O
+F_TRANSFER_RETRI ES	Unknown Integer 32-bit signed
+0x80f6	0x0003	PR_EMS_AB_OBJEC
+T_CLASS_CATEGOR Y	Unknown Integer 32-bit signed
+0x80f7	0x0003	PR_EMS_AB_OBJEC T_VERSION	Unknown Integer 32-bit signed
+0x80f8	0x000d	PR_EMS_AB_OFF_LI NE_AB_CONTAINER S_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_OFF_LI NE_AB_CONTAINER S	Unknown
+Array of ASCII or Unicode string values
+0x80f9	0x0102	PR_EMS_AB_OFF_LI NE_AB_SCHEDULE	Unknown
+Binary data
+0x80fa	0x000d	PR_EMS_AB_OFF_LI NE_AB_SERVER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_OFF_LI NE_AB_SERVER	Unknown
+ASCII or Unicode string
+0x80fb	0x0003	PR_EMS_AB_OFF_LI NE_AB_STYLE	Unknown Integer 32-bit signed
+0x80fc	0x0003	PR_EMS_AB_OID_T YPE	Unknown
+Integer 32-bit signed
+0x80fd	0x0102	PR_EMS_AB_OM_OB JECT_CLASS	Unknown Binary data
+0x80fe	0x0003	PR_EMS_AB_OM_SY NTAX	Unknown
+Integer 32-bit signed
+0x80ff	0x000b	PR_EMS_AB_OOF_R	Unknown
+
+Item type	Value type	Identifier	Description
+		EPLY_TO_ORIGINAT OR	Boolean
+0x8100	0x0003	PR_EMS_AB_OPEN_ RETRY_INTERVAL	Unknown
+Integer 32-bit signed
+0x8101	0x101e
+0x101f	PR_EMS_AB_ORGAN IZATION_NAME	Unknown Array of ASCII or Unicode string values
+0x8102	0x101e
+0x101f	PR_EMS_AB_ORGAN
+IZATIONAL_UNIT_N AME	Unknown
+Array of ASCII or Unicode string values
+0x8103	0x0102	PR_EMS_AB_ORIGIN AL_DISPLAY_TABLE	Unknown
+Binary data
+0x8104	0x0102	PR_EMS_AB_ORIGIN
+AL_DISPLAY_TABLE _MSDOS	Unknown Binary data
+0x8105	0x000d	PR_EMS_AB_OUTBO UND_SITES_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_OUTBO UND_SITES	Unknown
+Array of ASCII or Unicode string values
+0x8106	0x0102	PR_EMS_AB_P_SELE CTOR	Unknown Binary data
+0x8107	0x0102	PR_EMS_AB_P_SELE CTOR_INBOUND	Unknown
+Binary data
+0x8108	0x0102	PR_EMS_AB_PER_M
+SG_DIALOG_DISPLA Y_TABLE	Unknown Binary data
+0x8109	0x0102	PR_EMS_AB_PER_R
+ECIP_DIALOG_DISPL AY_TABLE	Unknown Binary data
+0x810a	0x0102	PR_EMS_AB_PERIOD _REP_SYNC_TIMES	Unknown Binary data
+0x810b	0x0003	PR_EMS_AB_PERIOD _REPL_STAGGER	Unknown
+Integer 32-bit signed
+0x810c	0x1102	PR_EMS_AB_POSTA L_ADDRESS	Unknown Array of Binary data values
+0x810d	0x1003	PR_EMS_AB_PREFE
+RRED_DELIVERY_M ETHOD	Unknown
+Array of Integer 32-bit signed values
+0x810e	0x001e
+0x001f	PR_EMS_AB_PRMD	Unknown
+ASCII or Unicode string
+0x810f	0x001e
+0x001f	PR_EMS_AB_PROXY _GENERATOR_DLL	Unknown ASCII or Unicode string
+0x8110	0x000d	PR_EMS_AB_PUBLIC	Unknown
+
+Item type	Value type	Identifier	Description
+		_DELEGATES_BL_O	Embedded object
+	0x101e
+0x101f	PR_EMS_AB_PUBLIC _DELEGATES_BL	Unknown Array of ASCII or Unicode string values
+0x8111	0x0102	PR_EMS_AB_QUOTA
+_NOTIFICATION_SC
+HEDULE	Unknown
+Binary data
+0x8112	0x0003	PR_EMS_AB_QUOTA
+_NOTIFICATION_ST
+YLE	Unknown
+Integer 32-bit signed
+0x8113	0x0003	PR_EMS_AB_RANGE _LOWER	Unknown
+Integer 32-bit signed
+0x8114	0x0003	PR_EMS_AB_RANGE _UPPER	Unknown Integer 32-bit signed
+0x8115	0x001e
+0x001f	PR_EMS_AB_RAS_C ALLBACK_NUMBER	Unknown
+ASCII or Unicode string
+0x8116	0x001e
+0x001f	PR_EMS_AB_RAS_P HONE_NUMBER	Unknown ASCII or Unicode string
+0x8117	0x001e
+0x001f	PR_EMS_AB_RAS_P
+HONEBOOK_ENTRY _NAME	Unknown
+ASCII or Unicode string
+0x8118	0x001e
+0x001f	PR_EMS_AB_RAS_R
+EMOTE_SRVR_NAM E	Unknown
+ASCII or Unicode string
+0x8119	0x1102	PR_EMS_AB_REGIST ERED_ADDRESS	Unknown
+Array of Binary data values
+0x811a	0x001e
+0x001f	PR_EMS_AB_REMOT E_BRIDGE_HEAD	Unknown ASCII or Unicode string
+0x811b	0x001e
+0x001f	PR_EMS_AB_REMOT
+E_BRIDGE_HEAD_A DDRESS	Unknown
+ASCII or Unicode string
+0x811c	0x000d	PR_EMS_AB_REMOT
+E_OUT_BH_SERVER _O	Unknown
+Embedded objects
+	0x001e
+0x001f	PR_EMS_AB_REMOT E_OUT_BH_SERVER	Unknown
+ASCII or Unicode string
+0x811d	0x000d	PR_EMS_AB_REMOT E_SITE_O	Unknown
+Embedded objects
+	0x001e
+0x001f	PR_EMS_AB_REMOT E_SITE	Unknown
+ASCII or Unicode string
+0x811e	0x0003	PR_EMS_AB_REPLIC ATION_SENSITIVITY	Unknown Integer 32-bit signed
+0x811f	0x0003	PR_EMS_AB_REPLIC	Unknown
+
+Item type	Value type	Identifier	Description
+		ATION_STAGGER	Integer 32-bit signed
+0x8120	0x000b	PR_EMS_AB_REPOR T_TO_ORIGINATOR	Unknown Boolean
+0x8121	0x000b	PR_EMS_AB_REPOR T_TO_OWNER	Unknown Boolean
+0x8122	0x0003	PR_EMS_AB_REQ_S EQ	Unknown Integer 32-bit signed
+0x8123	0x000d	PR_EMS_AB_RESPO
+NSIBLE_LOCAL_DX A_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_RESPO
+NSIBLE_LOCAL_DX A	Unknown
+ASCII or Unicode string
+0x8124	0x000d	PR_EMS_AB_RID_SE RVER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_RID_SE RVER	Unknown ASCII or Unicode string
+0x8125	0x000d	PR_EMS_AB_ROLE_ OCCUPANT_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_ROLE_ OCCUPANT	Unknown Array of ASCII or Unicode string values
+0x8126	0x101e
+0x101f	PR_EMS_AB_ROUTI NG_LIST	Unknown
+Array of ASCII or Unicode string values
+0x8127	0x0003	PR_EMS_AB_RTS_C HECKPOINT_SIZE	Unknown Integer 32-bit signed
+0x8128	0x0003	PR_EMS_AB_RTS_R ECOVERY_TIMEOUT	Unknown
+Integer 32-bit signed
+0x8129	0x0003	PR_EMS_AB_RTS_W INDOW_SIZE	Unknown Integer 32-bit signed
+0x812a	0x000d	PR_EMS_AB_RUNS_ ON_O	Unknown
+Embedded object
+0x812a	0x101e
+0x101f	PR_EMS_AB_RUNS_ ON	Unknown Array of ASCII or Unicode string values
+0x812b	0x0102	PR_EMS_AB_S_SELE CTOR	Unknown
+Binary data
+0x812c	0x0102	PR_EMS_AB_S_SELE CTOR_INBOUND	Unknown Binary data
+0x812d	0x0003	PR_EMS_AB_SEARC H_FLAGS	Unknown
+Integer 32-bit signed
+0x812e	0x1102	PR_EMS_AB_SEARC H_GUIDE	Unknown Array of Binary data values
+
+Item type	Value type	Identifier	Description
+0x812f	0x000d	PR_EMS_AB_SEE_A LSO_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_SEE_A LSO	Unknown
+Array of ASCII or Unicode string values
+0x8130	0x101e
+0x101f	PR_EMS_AB_SERIAL _NUMBER	Unknown Array of ASCII or Unicode string values
+0x8131	0x0003	PR_EMS_AB_SERVIC E_ACTION_FIRST	Unknown
+Integer 32-bit signed
+0x8132	0x0003	PR_EMS_AB_SERVIC E_ACTION_OTHER	Unknown Integer 32-bit signed
+0x8133	0x0003	PR_EMS_AB_SERVIC E_ACTION_SECOND	Unknown
+Integer 32-bit signed
+0x8134	0x0003	PR_EMS_AB_SERVIC E_RESTART_DELAY	Unknown Integer 32-bit signed
+0x8135	0x001e
+0x001f	PR_EMS_AB_SERVIC
+E_RESTART_MESSA GE	Unknown
+ASCII or Unicode string
+0x8136	0x0003	PR_EMS_AB_SESSIO
+N_DISCONNECT_TI MER	Unknown
+Integer 32-bit signed
+0x8137	0x101e
+0x101f	PR_EMS_AB_SITE_A FFINITY	Unknown
+Array of ASCII or Unicode string values
+0x8138	0x101e
+0x101f	PR_EMS_AB_SITE_P ROXY_SPACE	Unknown Array of ASCII or Unicode string values
+0x8139	0x0040	PR_EMS_AB_SPACE _LAST_COMPUTED	Unknown
+Filetime
+0x813a	0x001e
+0x001f	PR_EMS_AB_STREE T_ADDRESS	Unknown ASCII or Unicode string
+0x813b	0x000d	PR_EMS_AB_SUB_R EFS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_SUB_R EFS	Unknown Array of ASCII or Unicode string values
+0x813c	0x0003	PR_EMS_AB_SUBMI
+SSION_CONT_LENG TH	Unknown
+Integer 32-bit signed
+0x813d	0x1102	PR_EMS_AB_SUPPO
+RTED_APPLICATION _CONTEXT	Unknown
+Array of Binary data values
+0x813e	0x000d	PR_EMS_AB_SUPPO RTING_STACK_O	Unknown
+Embedded object
+0x813e	0x101e
+0x101f	PR_EMS_AB_SUPPO RTING_STACK	Unknown Array of ASCII or Unicode string values
+
+Item type	Value type	Identifier	Description
+0x813f	0x000d	PR_EMS_AB_SUPPO
+RTING_STACK_BL_ O	Unknown
+Embedded object
+0x813f	0x101e
+0x101f	PR_EMS_AB_SUPPO RTING_STACK_BL	Unknown Array of ASCII or Unicode string values
+0x8140	0x0102	PR_EMS_AB_T_SELE CTOR	Unknown
+Binary data
+0x8141	0x0102	PR_EMS_AB_T_SELE CTOR_INBOUND	Unknown Binary data
+0x8142	0x101e
+0x101f	PR_EMS_AB_TARGE T_MTAS	Unknown
+Array of ASCII or Unicode string values
+0x8143	0x1102	PR_EMS_AB_TELET
+EX_TERMINAL_IDE NTIFIER	Unknown Array of Binary data values
+0x8144	0x0003	PR_EMS_AB_TEMP_ ASSOC_THRESHOLD	Unknown Integer 32-bit signed
+0x8145	0x0003	PR_EMS_AB_TOMBS TONE_LIFETIME	Unknown
+Integer 32-bit signed
+0x8146	0x001e
+0x001f	PR_EMS_AB_TRACK
+ING_LOG_PATH_NA ME	Unknown ASCII or Unicode string
+0x8147	0x0003	PR_EMS_AB_TRANS _RETRY_MINS	Unknown Integer 32-bit signed
+0x8148	0x0003	PR_EMS_AB_TRANS _TIMEOUT_MINS	Unknown
+Integer 32-bit signed
+0x8149	0x0003	PR_EMS_AB_TRANS
+FER_RETRY_INTER VAL	Unknown Integer 32-bit signed
+0x814a	0x0003	PR_EMS_AB_TRANS
+FER_TIMEOUT_NON _URGENT	Unknown Integer 32-bit signed
+0x814b	0x0003	PR_EMS_AB_TRANS
+FER_TIMEOUT_NOR MAL	Unknown Integer 32-bit signed
+0x814c	0x0003	PR_EMS_AB_TRANS
+FER_TIMEOUT_URG ENT	Unknown Integer 32-bit signed
+0x814d	0x0003	PR_EMS_AB_TRANS
+LATION_TABLE_US ED	Unknown Integer 32-bit signed
+0x814e	0x000b	PR_EMS_AB_TRANS
+PORT_EXPEDITED_D ATA	Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x814f	0x0003	PR_EMS_AB_TRUST _LEVEL	Unknown Integer 32-bit signed
+0x8150	0x0003	PR_EMS_AB_TURN_
+REQUEST_THRESHO LD	Unknown
+Integer 32-bit signed
+0x8151	0x000b	PR_EMS_AB_TWO_
+WAY_ALTERNATE_ FACILITY	Unknown Boolean
+0x8152	0x000d	PR_EMS_AB_UNAUT H_ORIG_BL_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_UNAUT H_ORIG_BL	Unknown Array of ASCII or Unicode string values
+0x8153	0x1102	PR_EMS_AB_USER_ PASSWORD	Unknown
+Array of Binary data values
+0x8154	0x0003	PR_EMS_AB_USN_C REATED	Unknown Integer 32-bit signed
+0x8155	0x0003	PR_EMS_AB_USN_D
+SA_LAST_OBJ_REM OVED	Unknown
+Integer 32-bit signed
+0x8156	0x0003	PR_EMS_AB_USN_L AST_OBJ_REM	Unknown
+Integer 32-bit signed
+0x8157	0x0003	PR_EMS_AB_USN_S OURCE	Unknown Integer 32-bit signed
+0x8158	0x101e
+0x101f	PR_EMS_AB_X121_A DDRESS	Unknown
+Array of ASCII or Unicode string values
+0x8159	0x0102	PR_EMS_AB_X25_C
+ALL_USER_DATA_I NCOMING	Unknown Binary data
+0x815a	0x0102	PR_EMS_AB_X25_C
+ALL_USER_DATA_O UTGOING	Unknown Binary data
+0x815b	0x0102	PR_EMS_AB_X25_FA
+CILITIES_DATA_INC OMING	Unknown Binary data
+0x815c	0x0102	PR_EMS_AB_X25_FA
+CILITIES_DATA_OU TGOING	Unknown Binary data
+0x815d	0x0102	PR_EMS_AB_X25_LE ASED_LINE_PORT	Unknown Binary data
+0x815e	0x000b	PR_EMS_AB_X25_LE
+ASED_OR_SWITCHE D	Unknown Boolean
+0x815f	0x001e	PR_EMS_AB_X25_RE	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	MOTE_MTA_PHONE	ASCII or Unicode string
+0x8160	0x0102	PR_EMS_AB_X400_A TTACHMENT_TYPE	Unknown Binary data
+0x8161	0x0003	PR_EMS_AB_X400_S ELECTOR_SYNTAX	Unknown
+Integer 32-bit signed
+0x8162	0x0102	PR_EMS_AB_X500_A
+CCESS_CONTROL_LI ST	Unknown Binary data
+0x8163	0x0003	PR_EMS_AB_XMIT_
+TIMEOUT_NON_URG ENT	Unknown Integer 32-bit signed
+0x8164	0x0003	PR_EMS_AB_XMIT_ TIMEOUT_NORMAL	Unknown Integer 32-bit signed
+0x8165	0x0003	PR_EMS_AB_XMIT_ TIMEOUT_URGENT	Unknown
+Integer 32-bit signed
+0x8166	0x0102	PR_EMS_AB_SITE_F OLDER_GUID	Unknown Binary data
+0x8167	0x000d	PR_EMS_AB_SITE_F OLDER_SERVER_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_SITE_F OLDER_SERVER	Unknown ASCII or Unicode string
+0x8168	0x0003	PR_EMS_AB_REPLIC
+ATION_MAIL_MSG_ SIZE	Unknown
+Integer 32-bit signed
+0x8169	0x0102	PR_EMS_AB_MAXIM UM_OBJECT_ID	Unknown
+Binary data
+0x8170	0x101e
+0x101f	PR_EMS_AB_NETW ORK_ADDRESS	Unknown Array of ASCII or Unicode string values
+0x8171	0x101e
+0x101f	PR_EMS_AB_LDAP_ DISPLAY_NAME	Unknown
+Array of ASCII or Unicode string values
+0x8173	0x0003	PR_EMS_AB_SCHEM A_FLAGS	Unknown Integer 32-bit signed
+0x8174	0x000d	PR_EMS_AB_BRIDG EHEAD_SERVERS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_BRIDG EHEAD_SERVERS	Unknown Array of ASCII or Unicode string values
+0x8175	0x001e
+0x001f	PR_EMS_AB_WWW_ HOME_PAGE	Unknown
+ASCII or Unicode string
+0x8176	0x001e
+0x001f	PR_EMS_AB_NNTP_ CONTENT_FORMAT	Unknown ASCII or Unicode string
+0x8177	0x001e
+0x001f	PR_EMS_AB_POP_C ONTENT_FORMAT	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x8178	0x0003	PR_EMS_AB_LANGU AGE	Unknown Integer 32-bit signed
+0x8179	0x001e
+0x001f	PR_EMS_AB_POP_C HARACTER_SET	Unknown
+ASCII or Unicode string
+0x817a	0x0003	PR_EMS_AB_USN_IN TERSITE	Unknown Integer 32-bit signed
+0x817b	0x001e
+0x001f	PR_EMS_AB_SUB_SI TE	Unknown
+ASCII or Unicode string
+0x817c	0x1003	PR_EMS_AB_SCHEM A_VERSION	Unknown Array of Integer 32-bit signed value
+0x817d	0x001e
+0x001f	PR_EMS_AB_NNTP_ CHARACTER_SET	Unknown
+ASCII or Unicode string
+0x817e	0x000b	PR_EMS_AB_USE_SE RVER_VALUES	Unknown Boolean
+0x817f	0x0003	PR_EMS_AB_ENABL ED_PROTOCOLS	Unknown
+Integer 32-bit signed
+0x8180	0x0102	PR_EMS_AB_CONNE CTION_LIST_FILTER	Unknown Binary data
+0x8181	0x101e
+0x101f	PR_EMS_AB_AVAIL
+ABLE_AUTHORIZAT
+ION_PACKAGES	Unknown
+Array of ASCII or Unicode string values
+0x8182	0x101e
+0x101f	PR_EMS_AB_CHARA CTER_SET_LIST	Unknown
+Array of ASCII or Unicode string values
+0x8183	0x000b	PR_EMS_AB_USE_SI TE_VALUES
+0x8184	0x101e
+0x101f	PR_EMS_AB_ENABL
+ED_AUTHORIZATIO N_PACKAGES	Unknown
+Array of ASCII or Unicode string values
+0x8185	0x001e
+0x001f	PR_EMS_AB_CHARA CTER_SET	Unknown
+ASCII or Unicode string
+0x8186	0x0003	PR_EMS_AB_CONTE NT_TYPE	Unknown Integer 32-bit signed
+0x8187	0x000b	PR_EMS_AB_ANONY MOUS_ACCESS	Unknown Boolean
+0x8188	0x0102	PR_EMS_AB_CONTR
+OL_MSG_FOLDER_I D	Unknown Binary data
+0x8189	0x001e
+0x001f	PR_EMS_AB_USENE T_SITE_NAME	Unknown ASCII or Unicode string
+0x818a	0x0102	PR_EMS_AB_CONTR OL_MSG_RULES	Unknown
+Binary data
+0x818b	0x001e	PR_EMS_AB_AVAIL	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	ABLE_DISTRIBUTIO NS	ASCII or Unicode string
+
+0x818d	0x0102	PR_EMS_AB_OUTBO UND_HOST	Unknown
+Binary data
+0x818e	0x101e
+0x101f	PR_EMS_AB_INBOU ND_HOST	Unknown Array of ASCII or Unicode string values
+0x818f	0x0003	PR_EMS_AB_OUTGO ING_MSG_SIZE_LIMI T	Unknown
+Integer 32-bit signed
+0x8190	0x0003	PR_EMS_AB_INCOM
+ING_MSG_SIZE_LIMI T	Unknown
+Integer 32-bit signed
+0x8191	0x000b	PR_EMS_AB_SEND_ TNEF	Unknown Boolean
+0x8192	0x0102	PR_EMS_AB_AUTHO
+RIZED_PASSWORD_ CONFIRM	Unknown Binary data
+0x8193	0x001e
+0x001f	PR_EMS_AB_INBOU ND_NEWSFEED	Unknown ASCII or Unicode string
+0x8194	0x0003	PR_EMS_AB_NEWSF EED_TYPE	Unknown
+Integer 32-bit signed
+0x8195	0x001e
+0x001f	PR_EMS_AB_OUTBO UND_NEWSFEED	Unknown ASCII or Unicode string
+0x8196	0x0102	PR_EMS_AB_NEWSG ROUP_LIST	Unknown
+Binary data
+0x8197	0x101e
+0x101f	PR_EMS_AB_NNTP_ DISTRIBUTIONS	Unknown Array of ASCII or Unicode string values
+0x8198	0x001e
+0x001f	PR_EMS_AB_NEWSG ROUP	Unknown
+ASCII or Unicode string
+0x8199	0x001e
+0x001f	PR_EMS_AB_MODER ATOR	Unknown ASCII or Unicode string
+0x819a	0x001e
+0x001f	PR_EMS_AB_AUTHE NTICATION_TO_USE	Unknown
+ASCII or Unicode string
+0x819b	0x000b	PR_EMS_AB_HTTP_P UB_GAL	Unknown Boolean
+0x819c	0x0003	PR_EMS_AB_HTTP_P UB_GAL_LIMIT	Unknown
+Integer 32-bit signed
+
+0x819e	0x1102	PR_EMS_AB_HTTP_P UB_PF	Unknown Array of Binary data values
+
+Item type	Value type	Identifier	Description
+
+0x81a1	0x001e
+0x001f	PR_EMS_AB_X500_R DN	Unknown ASCII or Unicode string
+0x81a2	0x001e
+0x001f	PR_EMS_AB_X500_N C	Unknown
+ASCII or Unicode string
+0x81a3	0x101e
+0x101f	PR_EMS_AB_REFER RAL_LIST	Unknown Array of ASCII or Unicode string values
+0x81a4	0x000b	PR_EMS_AB_NNTP_
+DISTRIBUTIONS_FL AG	Unknown Boolean
+0x81a5	0x000d	PR_EMS_AB_ASSOC
+_PROTOCOL_CFG_N
+NTP_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_ASSOC
+_PROTOCOL_CFG_N
+NTP	Unknown
+ASCII or Unicode string
+0x81a6	0x000d	PR_EMS_AB_NNTP_ NEWSFEEDS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_NNTP_ NEWSFEEDS	Unknown Array of ASCII or Unicode string values
+
+0x81a8	0x000b	PR_EMS_AB_ENABL ED_PROTOCOL_CFG	Unknown Boolean
+0x81a9	0x101e
+0x101f	PR_EMS_AB_HTTP_P
+UB_AB_ATTRIBUTE S	Unknown Array of ASCII or Unicode string values
+
+0x81ab	0x101e
+0x101f	PR_EMS_AB_HTTP_S ERVERS	Unknown Array of ASCII or Unicode string values
+0x81ac	0x000b	PR_EMS_AB_MODER ATED	Unknown Boolean
+
+0x81ad	0x001e
+0x001f	PR_EMS_AB_RAS_A CCOUNT	Unknown ASCII or Unicode string
+0x81ae	0x0102	PR_EMS_AB_RAS_P ASSWORD	Unknown
+Binary data
+0x81af	0x0102	PR_EMS_AB_INCOM ING_PASSWORD	Unknown Binary data
+0x81b0	0x000b	PR_EMS_AB_OUTBO UND_HOST_TYPE	Unknown Boolean
+0x81b1	0x000b	PR_EMS_AB_PROXY	Unknown
+
+Item type	Value type	Identifier	Description
+		_GENERATION_ENA
+BLED	Boolean
+0x81b2	0x0102	PR_EMS_AB_ROOT_
+NEWSGROUPS_FOL DER_ID	Unknown
+Binary data
+0x81b3	0x000b	PR_EMS_AB_CONNE CTION_TYPE	Unknown Boolean
+0x81b4	0x0003	PR_EMS_AB_CONNE
+CTION_LIST_FILTER _TYPE	Unknown Integer 32-bit signed
+0x81b5	0x0003	PR_EMS_AB_PORT_ NUMBER	Unknown Integer 32-bit signed
+0x81b6	0x101e
+0x101f	PR_EMS_AB_PROTO COL_SETTINGS	Unknown
+Array of ASCII or Unicode string values
+0x81b7	0x001e
+0x001f	PR_EMS_AB_GROUP _BY_ATTR_1	Unknown ASCII or Unicode string
+0x81b8	0x001e
+0x001f	PR_EMS_AB_GROUP _BY_ATTR_2	Unknown
+ASCII or Unicode string
+0x81b9	0x001e
+0x001f	PR_EMS_AB_GROUP _BY_ATTR_3	Unknown ASCII or Unicode string
+0x81ba	0x001e
+0x001f	PR_EMS_AB_GROUP _BY_ATTR_4	Unknown
+ASCII or Unicode string
+
+0x81be	0x001e
+0x001f	PR_EMS_AB_VIEW_ SITE	Unknown ASCII or Unicode string
+0x81bf	0x001e
+0x001f	PR_EMS_AB_VIEW_ CONTAINER_1	Unknown
+ASCII or Unicode string
+0x81c0	0x001e
+0x001f	PR_EMS_AB_VIEW_ CONTAINER_2	Unknown ASCII or Unicode string
+0x81c1	0x001e
+0x001f	PR_EMS_AB_VIEW_ CONTAINER_3	Unknown
+ASCII or Unicode string
+0x81c2	0x0040	PR_EMS_AB_PROMO _EXPIRATION	Unknown Filetime
+0x81c3	0x101e
+0x101f	PR_EMS_AB_DISABL
+ED_GATEWAY_PRO XY	Unknown
+Array of ASCII or Unicode string values
+0x81c4	0x0102	PR_EMS_AB_COMPR OMISED_KEY_LIST	Unknown
+Binary data
+0x81c5	0x000d	PR_EMS_AB_INSAD MIN_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_INSAD MIN	Unknown
+ASCII or Unicode string
+
+Item type	Value type	Identifier	Description
+0x81c6	0x000b	PR_EMS_AB_OVERR
+IDE_NNTP_CONTEN T_FORMAT	Unknown Boolean
+0x81c7	0x000d	PR_EMS_AB_OBJ_VI EW_CONTAINERS_O	Unknown
+Embedded object
+	0x101e
+0x101f	PR_EMS_AB_OBJ_VI EW_CONTAINERS	Unknown
+Array of ASCII or Unicode string values
+0x8c18	0x0003	PR_EMS_AB_VIEW_ FLAGS	Unknown Integer 32-bit signed
+0x8c19	0x001e
+0x001f	PR_EMS_AB_GROUP
+_BY_ATTR_VALUE_
+STR	Unknown
+ASCII or Unicode string
+0x8c1a	0x000d	PR_EMS_AB_GROUP
+_BY_ATTR_VALUE_
+DN_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_GROUP
+_BY_ATTR_VALUE_
+DN	Unknown
+ASCII or Unicode string
+0x8c1b	0x1102	PR_EMS_AB_VIEW_ DEFINITION	Unknown
+Array of Binary data values
+0x8c1c	0x0102	PR_EMS_AB_MIME_ TYPES	Unknown Binary data
+0x8c1d	0x0003	PR_EMS_AB_LDAP_ SEARCH_CFG	Unknown
+Integer 32-bit signed
+0x8c1e	0x000d	PR_EMS_AB_INBOU ND_DN_O	Unknown
+Embedded object
+	0x001e
+0x001f	PR_EMS_AB_INBOU ND_DN	Unknown
+ASCII or Unicode string
+0x8c1f	0x000b	PR_EMS_AB_INBOU
+ND_NEWSFEED_TYP E	Unknown Boolean
+0x8c20	0x000b	PR_EMS_AB_INBOU ND_ACCEPT_ALL	Unknown Boolean
+0x8c21	0x000b	PR_EMS_AB_ENABL ED	Unknown Boolean
+0x8c22	0x000b	PR_EMS_AB_PRESE
+RVE_INTERNET_CO NTENT	Unknown Boolean
+0x8c23	0x000b	PR_EMS_AB_DISABL
+E_DEFERRED_COM MIT	Unknown Boolean
+0x8c24	0x000b	PR_EMS_AB_CLIENT _ACCESS_ENABLED	Unknown Boolean
+
+Item type	Value type	Identifier	Description
+0x8c25	0x000b	PR_EMS_AB_REQUI RE_SSL	Unknown Boolean
+0x8c26	0x001e
+0x001f	PR_EMS_AB_ANONY MOUS_ACCOUNT	Unknown
+ASCII or Unicode string
+0x8c27	0x0102	PR_EMS_AB_CERTIF ICATE_CHAIN_V3	Unknown Binary data
+0x8c28	0x0102	PR_EMS_AB_CERTIF
+ICATE_REVOCATIO N_LIST_V3	Unknown
+Binary data
+0x8c29	0x0102	PR_EMS_AB_CERTIF
+ICATE_REVOCATIO N_LIST_V1	Unknown
+Binary data
+0x8c30	0x1102	PR_EMS_AB_CROSS _CERTIFICATE_CRL	Unknown
+Array of Binary data values
+0x8c31	0x000b	PR_EMS_AB_SEND_ EMAIL_MESSAGE	Unknown Boolean
+0x8c32	0x000b	PR_EMS_AB_ENABL E_COMPATIBILITY	Unknown Boolean
+0x8c33	0x101e
+0x101f	PR_EMS_AB_SMIME _ALG_LIST_NA	Unknown Array of ASCII or Unicode string values
+0x8c34	0x101e
+0x101f	PR_EMS_AB_SMIME _ALG_LIST_OTHER	Unknown
+Array of ASCII or Unicode string values
+0x8c35	0x001e
+0x001f	PR_EMS_AB_SMIME
+_ALG_SELECTED_N
+A	Unknown ASCII or Unicode string
+0x8c36	0x001e
+0x001f	PR_EMS_AB_SMIME
+_ALG_SELECTED_O
+THER	Unknown ASCII or Unicode string
+0x8c37	0x000b	PR_EMS_AB_DEFAU
+LT_MESSAGE_FORM AT	Unknown Boolean
+0x8c38	0x001e
+0x001f	PR_EMS_AB_TYPE	Unknown ASCII or Unicode string
+
+0x8c3a	0x0003	PR_EMS_AB_DO_OA B_VERSION	Unknown
+Integer 32-bit signed
+0x8c3b	0x0102	PR_EMS_AB_VOICE_
+MAIL_SYSTEM_GUI D	Unknown Binary data
+0x8c3c	0x001e
+0x001f	PR_EMS_AB_VOICE_ MAIL_USER_ID	Unknown ASCII or Unicode string
+0x8c3d	0x001e	PR_EMS_AB_VOICE_	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	MAIL_PASSWORD	ASCII or Unicode string
+0x8c3e	0x0102	PR_EMS_AB_VOICE_
+MAIL_RECORDED_N AME	Unknown Binary data
+0x8c3f	0x101e
+0x101f	PR_EMS_AB_VOICE_ MAIL_GREETINGS	Unknown Array of ASCII or Unicode string values
+0x8c40	0x1102	PR_EMS_AB_VOICE_ MAIL_FLAGS	Unknown
+Array of Binary data value
+0x8c41	0x0003	PR_EMS_AB_VOICE_ MAIL_VOLUME	Unknown Integer 32-bit signed
+0x8c42	0x0003	PR_EMS_AB_VOICE_ MAIL_SPEED	Unknown
+Integer 32-bit signed
+0x8c43	0x1003	PR_EMS_AB_VOICE_
+MAIL_RECORDING_ LENGTH	Unknown Array of Integer 32-bit signed values
+0x8c44	0x001e
+0x001f	PR_EMS_AB_DISPLA Y_NAME_SUFFIX	Unknown ASCII or Unicode string
+0x8c45	0x1102	PR_EMS_AB_ATTRI BUTE_CERTIFICATE	Unknown
+Array of Binary data value
+0x8c46	0x1102	PR_EMS_AB_DELTA _REVOCATION_LIST	Unknown Array of Binary data value
+0x8c47	0x1102	PR_EMS_AB_SECURI TY_POLICY	Unknown
+Array of Binary data value
+0x8c48	0x000b	PR_EMS_AB_SUPPO
+RT_SMIME_SIGNAT URES	Unknown Boolean
+0x8c49	0x000b	PR_EMS_AB_DELEG ATE_USER	Unknown Boolean
+0x8c50	0x000b	PR_EMS_AB_LIST_P UBLIC_FOLDERS	Unknown Boolean
+0x8c51	0x001e
+0x001f	PR_EMS_AB_LABEL EDURI	Unknown ASCII or Unicode string
+0x8c52	0x000b	PR_EMS_AB_RETUR
+N_EXACT_MSG_SIZ E	Unknown Boolean
+0x8c53	0x001e
+0x001f	PR_EMS_AB_GENER ATION_QUALIFIER	Unknown
+ASCII or Unicode string
+0x8c54	0x001e
+0x001f	PR_EMS_AB_HOUSE _IDENTIFIER	Unknown ASCII or Unicode string
+0x8c55	0x0102	PR_EMS_AB_SUPPO RTED_ALGORITHMS	Unknown
+Binary data
+0x8c56	0x001e	PR_EMS_AB_DMD_N	Unknown
+
+Item type	Value type	Identifier	Description
+	0x001f	AME	ASCII or Unicode string
+0x8c57	0x001e
+0x001f	PR_EMS_AB_EXTEN
+SION_ATTRIBUTE_1 1	Unknown ASCII or Unicode string
+0x8c58	0x001e
+0x001f	PR_EMS_AB_EXTEN
+SION_ATTRIBUTE_1 2	Unknown ASCII or Unicode string
+0x8c59	0x001e
+0x001f	PR_EMS_AB_EXTEN
+SION_ATTRIBUTE_1 3	Unknown ASCII or Unicode string
+0x8c60	0x001e
+0x001f	PR_EMS_AB_EXTEN
+SION_ATTRIBUTE_1 4	Unknown ASCII or Unicode string
+0x8c61	0x001e
+0x001f	PR_EMS_AB_EXTEN
+SION_ATTRIBUTE_1 5	Unknown ASCII or Unicode string
+0x8c62	0x0003	PR_EMS_AB_REPLIC
+ATED_OBJECT_VER SION	Unknown Integer 32-bit signed
+0x8c63	0x001e
+0x001f	PR_EMS_AB_MAIL_ DROP	Unknown ASCII or Unicode string
+	0x001e
+0x001f	PR_EMS_AB_FORW ARDING_ADDRESS	Unknown
+ASCII or Unicode string
+0x8c65	0x0102	PR_EMS_AB_FORM_ DATA	Unknown Binary data
+0x8c66	0x001e
+0x001f	PR_EMS_AB_OWA_S ERVER	Unknown
+ASCII or Unicode string
+0x8c67	0x001e
+0x001f	PR_EMS_AB_EMPLO YEE_NUMBER	Unknown ASCII or Unicode string
+0x8c68	0x001e
+0x001f	PR_EMS_AB_TELEP
+HONE_PERSONAL_P AGER	Unknown
+ASCII or Unicode string
+0x8c69	0x001e
+0x001f	PR_EMS_AB_EMPLO YEE_TYPE	Unknown
+ASCII or Unicode string
+0x8c6a	0x1102	PR_EMS_AB_TAGGE D_X509_CERT	Unknown Array of Binary data values
+0x8c6b	0x001e
+0x001f	PR_EMS_AB_PERSO NAL_TITLE	Unknown
+ASCII or Unicode string
+0x8c6c	0x001e
+0x001f	PR_EMS_AB_LANGU AGE_ISO639	Unknown ASCII or Unicode string
+
+0xf000	0x000d	PR_EMS_AB_OTHER	Unknown
+Item type	Value type	Identifier	Description
+		_RECIPS	Embedded object
+
+0xfff8	0x101e
+0x101f	PR_EMS_AB_CHILD_ RDNS	Unknown Array of ASCII or Unicode string value
+0xfff9	0x001e
+0x001f	PR_EMS_AB_HIERA RCHY_PATH	Unknown
+ASCII or Unicode string
+0xfffa	0x0102	PR_EMS_AB_OBJEC T_OID	Unknown Binary data
+0xfffb	0x000b	PR_EMS_AB_IS_MAS TER	Unknown Boolean
+0xfffc	0x0102	PR_EMS_AB_PAREN T_ENTRYID	Unknown Binary data
+0xfffd	0x0003	PR_EMS_AB_CONTA INERID	Unknown
+Integer 32-bit signed
+0xfffe	0x001e
+0x001f	PR_EMS_AB_SERVE R	Unknown ASCII or Unicode string
+3.22.	Special error value (0xffff)
+Item type	Value type	Identifier	Description
+0xffff		PROP_ID_INVALID	Invalid property
+3.23.	Named properties in the name-to-id map
+3.23.1.	Class identifiers
+The name-to-id map maps properties from object interfaces to the PFF items. The object interfaces are identified by their class identifier (CLSID) which is formatted as a GUID.
+Class identifier	Interface
+00020328-0000-0000-c000-000000000046	MAPI
+00020329-0000-0000-c000-000000000046	Public stings
+
+00020386-0000-0000-c000-000000000046	Internet headers
+
+00062002-0000-0000-c000-000000000046	Appointment
+00062003-0000-0000-c000-000000000046	Task
+00062004-0000-0000-c000-000000000046	Address
+
+Class identifier	Interface
+00062008-0000-0000-c000-000000000046	Common
+
+0006200a-0000-0000-c000-000000000046	Log
+0006200b-0000-0000-c000-000000000046	Unknown
+
+0006200e-0000-0000-c000-000000000046	Note
+
+00062014-0000-0000-c000-000000000046	Unknown
+
+00062040-0000-0000-c000-000000000046	Sharing
+00062041-0000-0000-c000-000000000046	Post RSS
+
+29f3ab56-554d-11d0-a97c-00a0c911f50a	Unknown
+4442858e-a9e3-4e80-b900-317a210cc15b	Unified Messaging
+6ed8da90-450b-101b-98da-00aa003f1305	Meeting
+71035549-0739-4dcb-9163-00f0580dbbdf	Air Sync
+96357f7f-59e1-47d0-99a7-46515c183b54	Attachment
+3.23.2.	TODO
+3.23.3.	Meeting named properties
+Named properties mapped to the Meeting interface GUID: 6ed8da90-450b-101b-98da00aa003f1305.
+PidLidAttendeeCriticalChange                           LID_ATTENDEE_CRITICAL_CHANGE
+0x0001 NULL                          PT_SYSTIME    MNID_ID     PSETID_Meeting
+PidLidWhere                                            LID_WHERE
+0x0002 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidGlobalObjectId                                   LID_GLOBAL_OBJID
+0x0003 NULL                          PT_BINARY     MNID_ID     PSETID_Meeting
+PidLidIsSilent                                         LID_IS_SILENT
+0x0004 NULL                          PT_BOOLEAN    MNID_ID     PSETID_Meeting
+PidLidIsRecurring                                      LID_IS_RECURRING
+0x0005 NULL                          PT_BOOLEAN    MNID_ID     PSETID_Meeting
+PidLidRequiredAttendees                                LID_REQUIRED_ATTENDEES
+0x0006 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidOptionalAttendees                                LID_OPTIONAL_ATTENDEES
+0x0007 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidResourceAttendees                                LID_RESOURCE_ATTENDEES
+0x0008 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidDelegateMail                                     LID_DELEGATE_MAIL
+0x0009 NULL                          PT_BOOLEAN    MNID_ID     PSETID_Meeting
+PidLidIsException                                      LID_IS_EXCEPTION
+0x000A NULL                          PT_BOOLEAN    MNID_ID     PSETID_Meeting
+PidLidSingleInvite                                     LID_SINGLE_INVITE
+0x000B NULL                          PT_BOOLEAN    MNID_ID     PSETID_Meeting
+PidLidTimeZone                                         LID_TIME_ZONE
+0x000C NULL                          PT_LONG       MNID_ID     PSETID_Meeting
+PidLidDayInterval                                      LID_DAY_INTERVAL
+0x0011 NULL                          PT_SHORT      MNID_ID     PSETID_Meeting
+PidLidWeekInterval                                     LID_WEEK_INTERVAL
+0x0012 NULL                          PT_SHORT      MNID_ID     PSETID_Meeting
+PidLidMonthInterval                                    LID_MONTH_INTERVAL
+0x0013 NULL                          PT_SHORT      MNID_ID     PSETID_Meeting
+PidLidYearInterval                                     LID_YEAR_INTERVAL
+0x0014 NULL                          PT_SHORT      MNID_ID     PSETID_Meeting
+PidLidOwnerCriticalChange                              LID_OWNER_CRITICAL_CHANGE
+0x001A NULL                          PT_SYSTIME    MNID_ID     PSETID_Meeting
+PidLidCalendarType                                     LID_CALENDAR_TYPE
+0x001C NULL                          PT_LONG       MNID_ID     PSETID_Meeting
+PidLidAllAttendeesList                                 LID_ALL_ATTENDEES_LIST
+0x001D NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidCleanGlobalObjectId                              CleanGlobalObjId
+0x0023 NULL                          PT_BINARY     MNID_ID     PSETID_Meeting
+PidLidAppointmentMessageClass                          ApptMessageClass
+0x0024 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidMeetingType                                      MeetingType
+0x0026 NULL                          PT_LONG       MNID_ID     PSETID_Meeting
+PidLidOldLocation                                      OldLocation
+0x0028 NULL                          PT_UNICODE    MNID_ID     PSETID_Meeting
+PidLidOldWhenStartWhole                                OldWhenStartWhole
+0x0029 NULL                          PT_SYSTIME    MNID_ID     PSETID_Meeting
+PidLidOldWhenEndWhole                                  OldWhenEndWhole
+0x002A NULL                          PT_SYSTIME    MNID_ID     PSETID_Meeting
+
+3.23.4.	Address named properties
+Named properties mapped to the Address interface GUID: 00062004-0000-0000-c000000000000046.
+Item type	Value type	Identifier	Description
+0x8005	0x001e
+0x001f		FileAs
+ASCII or Unicode string
+0x8006	0x0003		Unknown Integer 32-bit signed
+0x8007	0x1003		Unknown
+Array if Integer 32-bit signed values
+
+0x800e	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+
+
+Item type	Value type	Identifier	Description
+0x8010	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+
+0x801a	0x001e
+0x001f		Home Address
+ASCII or Unicode string
+0x801b	0x001e
+0x001f		Business Address
+ASCII or Unicode string
+0x801c	0x001e
+0x001f		Other Address
+ASCII or Unicode string
+
+0x8022	0x001e
+0x001f		Selected Mailing Address ASCII or Unicode string
+0x8023	0x0003		Unknown
+Integer 32-bit signed
+
+0x8025	0x000b		Journal Boolean
+0x8026	0x1003		Unknown
+Array if Integer 32-bit signed values
+0x8027	0x1003		Unknown Array if Integer 32-bit signed values
+0x8028	0x1003		Unknown
+Array if Integer 32-bit signed values
+0x8029	0x0003		Unknown Integer 32-bit signed
+
+0x802b	0x001e
+0x001f		Webpage
+ASCII or Unicode string
+
+0x8045	0x001e
+0x001f		Business Address City ASCII or Unicode string
+0x8046	0x001e
+0x001f		Business Address Street ASCII or Unicode string
+0x8047	0x001e
+0x001f		Business Address State ASCII or Unicode string
+0x8048	0x001e
+0x001f		Business Address Postal Code ASCII or Unicode string
+0x8049	0x001e
+0x001f		Business Address Country ASCII or Unicode string
+
+
+Item type	Value type	Identifier	Description
+0x8062	0x001e
+0x001f		IM Address
+ASCII or Unicode string
+
+0x8080	0x001e
+0x001f		Email1 Display Name ASCII or Unicode string
+
+0x8082	0x001e
+0x001f		Email1 Address Type
+ASCII or Unicode string
+0x8083	0x001e
+0x001f		Email1 Address
+ASCII or Unicode string
+0x8084	0x001e
+0x001f		Email1 Display Name ASCII or Unicode string
+0x8085	0x0102		Email1 Entry ID Binary Data
+
+0x8093	0x001e
+0x001f		Email2 Address
+ASCII or Unicode string
+
+0x8095	0x0102		Email2 Entry ID Binary Data
+
+0x80a3	0x001e
+0x001f		Email3 Address
+ASCII or Unicode string
+
+0x80a5	0x0102		Email3 Entry ID Binary Data
+
+0x80b2	0x001e
+0x001f		Fax1 Address Type
+ASCII or Unicode string
+0x80b3	0x001e
+0x001f		Fax1 Email Address
+ASCII or Unicode string
+0x80b4	0x001e
+0x001f		Fax1 Original Display Name ASCII or Unicode string
+0x80b5	0x0102		Fax1 Original Entry ID
+			Binary data
+
+0x80c2	0x001e
+0x001f		Fax2 Address Type
+ASCII or Unicode string
+0x80c3	0x001e
+0x001f		Fax2 Email Address
+ASCII or Unicode string
+Item type	Value type	Identifier	Description
+0x80c4	0x001e
+0x001f		Fax2 Original Display Name ASCII or Unicode string
+0x80c5	0x0102		Fax2 Original Entry ID Binary data
+
+0x80d2	0x001e
+0x001f		Fax3 Address Type
+ASCII or Unicode string
+0x80d3	0x001e
+0x001f		Fax3 Email Address
+ASCII or Unicode string
+0x80d4	0x001e
+0x001f		Fax3 Original Display Name ASCII or Unicode string
+0x80d5	0x0102		Fax3 Original Entry ID
+			Binary data
+
+0x80dd	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+3.23.5.	Task named properties
+Named properties mapped to the Task interface GUID: 00062003-0000-0000-c000-000000000046.
+Item type	Value type	Identifier	Description
+0x8101	0x0003		Status
+Integer 32-bit signed
+0x8102	0x0005		Percent Complete
+Floating point double precision (64-bit)
+0x8103	0x000b		Team Task Boolean
+0x8104	0x0040		Start Date Filetime
+0x8105	0x0040		Due Date Filetime
+
+0x810f	0x0040		Date Completed Filetime
+0x8110	0x0003		Actual Work
+Integer 32-bit signed
+0x8111	0x0003		Total Work
+Integer 32-bit signed
+0x8112	0x0003		Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x8113	0x0003		Unknown Integer 32-bit signed
+
+0x8116	0x0102		Unknown
+Binary data
+
+0x811c	0x000b		Complete
+Integer 32-bit signed
+
+0x811f	0x001e
+0x001f		Owner
+ASCII or Unicode string
+
+0x8121	0x001e
+0x001f		Delegator
+ASCII or Unicode string
+
+0x8123	0x0003		Ordinal
+Integer 32-bit signed
+0x8124	0x000b		Unknown Boolean
+
+0x8126	0x000b		Is Recurring Boolean
+0x8127	0x001e
+0x001f		Role
+ASCII or Unicode string
+
+0x8129	0x0003		Ownership
+Integer 32-bit signed
+0x812a	0x0003		Delegation State
+Integer 32-bit signed
+
+0x812c	0x000b		Unknown Boolean
+3.23.6.	Appointment named properties
+Named properties mapped to the Appointment interface GUID: 00062002-0000-0000-c000000000000046.
+Item type	Value type	Identifier	Description
+0x8200	0x000b		Send As ICAL
+
+Item type	Value type	Identifier	Description
+			Boolean
+0x8201	0x0003		Unknown Integer 32-bit signed
+0x8202	0x0040		Unknown
+Filetime
+0x8203	0x0003		Unknown Integer 32-bit signed
+
+0x8205	0x0003		Busy Status
+Integer 32-bit signed
+
+0x8207	0x0003		Unknown Integer 32-bit signed
+0x8208	0x001e
+0x001f		Location
+ASCII or Unicode string
+
+0x820d	0x0040		Start
+Filetime
+0x820e	0x0040		End
+Filetime
+0x820f	0x0040		Unknown Filetime
+0x8210	0x0040		Unknown
+Filetime
+0x8211	0x0040		Unknown Filetime
+0x8212	0x0040		Unknown
+Filetime
+0x8213	0x0003		Duration
+Integer 32-bit signed
+0x8214	0x0003		Label
+Integer 32-bit signed
+0x8215	0x000b		All Day Event Boolean
+0x8216	0x0102		Unknown
+Binary data
+0x8217	0x0003		Meeting Status
+Integer 32-bit signed
+0x8218	0x0003		Response Status
+Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+0x8223	0x000b		Is Recurring Boolean
+0x8224	0x0003		Unknown
+Integer 32-bit signed
+
+0x8228	0x0040		Recurrence Base Filetime
+0x8229	0x000b		Unknown Boolean
+
+0x8231	0x0003		Recurrence Type
+Integer 32-bit signed
+0x8232	0x001e
+0x001f		Recurrence Pattern
+ASCII or Unicode string
+
+0x8234	0x001e
+0x001f		Time zone
+ASCII or Unicode string
+0x8235	0x0040		Unknown Filetime
+0x8236	0x0040		Unknown Filetime
+
+0x8238	0x001e
+0x001f		All Attendees
+ASCII or Unicode string
+
+0x823b	0x001e
+0x001f		To Attendees
+ASCII or Unicode string
+0x823c	0x001e
+0x001f		CC Attendees
+ASCII or Unicode string
+0x822d	0x0003		Unknown Integer 32-bit signed
+
+### OOM	                      propID propName  propType	     Kind OLEGUID
+### Appointment Named Properties
+IsOnlineMeeting               0x8240 NULL                          PT_BOOLEAN
+MNID_ID     PSETID_Appointment
+NetMeetingType                0x8241 NULL                          PT_LONG
+MNID_ID     PSETID_Appointment
+NetMeetingServer              0x8242 NULL                          PT_STRING8
+MNID_ID     PSETID_Appointment
+NetMeetingOrganizerAlias      0x8243 NULL                          PT_STRING8
+MNID_ID     PSETID_Appointment
+NetMeetingAutoStart           0x8244 NULL                          PT_BOOLEAN
+MNID_ID     PSETID_Appointment
+NULL                          0x8245 NULL                          PT_LONG
+MNID_ID     PSETID_Appointment
+ConferenceServerAllowExternal 0x8246 NULL                          PT_BOOLEAN
+MNID_ID     PSETID_Appointment
+NetMeetingDocPathName         0x8247 NULL                          PT_STRING8
+MNID_ID     PSETID_Appointment
+NetShowURL                    0x8248 NULL                          PT_STRING8
+MNID_ID     PSETID_Appointment
+ConferenceServerPassword      0x8249 NULL                          PT_STRING8
+MNID_ID     PSETID_Appointment
+NULL                          0x8256 NULL                          PT_LONG
+MNID_ID     PSETID_Appointment
+ApptCounterProposal           0x8257 NULL                          PT_BOOLEAN
+MNID_ID     PSETID_Appointment
+NULL                          0x8259 NULL                          PT_LONG
+MNID_ID     PSETID_Appointment
+NULL                          0x825a NULL                          PT_BOOLEAN
+MNID_ID     PSETID_Appointment
+ApptTZDefStartDisplay         0x825e NULL                          PT_BINARY
+MNID_ID     PSETID_Appointment
+ApptTZDefEndDisplay           0x825f NULL                          PT_BINARY
+MNID_ID     PSETID_Appointment
+3.23.7.	Common named properties
+Named properties mapped to the Common interface GUID: 00062008-0000-0000-c000000000000046
+Item type	Value type	Identifier	Description
+0x8501	0x0003		ReminderMinutesBeforeStart Integer 32-bit signed
+0x8502	0x0040		ReminderTime Filetime
+0x8503	0x000b		ReminderSet Boolean
+
+0x8506	0x000b		Private Boolean
+
+0x850e	0x000b		NoAging Boolean
+
+0x8510	0x0003		Unknown Integer 32-bit signed
+
+Item type	Value type	Identifier	Description
+
+0x8514	0x000b		Unknown Boolean
+
+0x8516	0x0040		Common Start Filetime
+0x8517	0x0040		Common End Filetime
+0x8518	0x0003		Unknown
+Integer 32-bit signed
+
+0x8534	0x001e
+0x001f		Mileage
+ASCII or Unicode string
+0x8535	0x001e
+0x001f		Billing Information
+ASCII or Unicode string
+0x8536	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+0x8537	0x001e
+0x001f
+			Unknown
+			ASCII 	or Unicode	 string
+0x8538	0x001e
+0x001f
+			Unknown
+			ASCII 	or Unicode	 string
+0x8539	0x101e
+0x101f		Companies
+Array of ASCII or Unicode string values
+0x853a	0x101e
+0x101f		Contacts
+Array of ASCII or Unicode string values
+
+0x8552	0x0003		Outlook Internal Version    Integer 32-bit signed
+
+0x8554	0x001e 0x001f		Outlook Version     ASCII or Unicode string
+
+0x8560	0x0040		Flag Due By Filetime
+
+0x8582	0x000b		Use TNEF Boolean
+0x8583	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+0x8584	0x0102		Unknown
+Item type	Value type	Identifier	Description
+			Binary data
+0x8585	0x0102		Unknown Binary data
+0x8586	0x001e
+0x001f		Unknown
+			ASCII 	or Unicode	 string
+
+0x859c:	0x0102		Unknown Binary data
+			Related to change key (0x65e2) /list
+			(0x65e3) ?
+3.23.8.	Log named properties
+Named properties mapped to the Log interface GUID: 0006200a-0000-0000-c000-000000000046
+Item type	Value type	Identifier	Description
+0x8700	0x001e
+0x001f		Type
+ASCII or Unicode string
+
+0x8706	0x0040		Start
+Filetime
+0x8707	0x0003		Duration
+Integer 32-bit signed
+0x8708	0x0040		End
+Filetime
+
+0x870c	0x0003		LogFlags
+Integer 32-bit signed
+
+0x870e	0x000b		DocPrinted Boolean
+0x870f	0x000b		DocSaved Boolean
+0x8710	0x000b		DocRouted Boolean
+0x8711	0x000b		DocPosted Boolean
+0x8712	0x001e
+0x001f		TypeDescription
+ASCII or Unicode string
+3.23.9.	Post RSS named properties
+Named properties mapped to the Post RSS interface GUID: 00062041-0000-0000-c000000000000046.
+PidLidPostRssChannelLink                               PostRssChannelLink
+0x8900 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+PidLidPostRssItemLink                                  PostRssItemLink
+0x8901 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+PidLidPostRssItemHash                                  PostRssItemHash
+0x8902 NULL                          PT_LONG       MNID_ID     PSETID_PostRss
+PidLidPostRssItemGuid                                  PostRssItemGuid
+0x8903 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+PidLidPostRssChannel                                   PostRssChannel
+0x8904 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+PidLidPostRssItemXml                                   PostRssItemXml
+0x8905 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+PidLidPostRssSubscription                              PostRssSubscription
+0x8906 NULL                          PT_UNICODE    MNID_ID     PSETID_PostRss
+3.23.10.	Sharing named properties
+Named properties mapped to the Sharing interface GUID: 00062040-0000-0000-c000000000000046.
+PidLidSharingStatus                                    SharingStatus
+0x8A00 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingProviderGuid                              SharingProviderGuid
+0x8A01 NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingProviderName                              SharingProviderName
+0x8A02 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingProviderUrl                               SharingProviderUrl
+0x8A03 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemotePath                                SharingRemotePath
+0x8A04 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemoteName                                SharingRemoteName
+0x8A05 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemoteUid                                 SharingRemoteUid
+0x8A06 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingInitiatorName                             SharingInitiatorName
+0x8A07 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingInitiatorSmtp                             SharingInitiatorSmtp
+0x8A08 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingInitiatorEntryId                          SharingInitiatorEid
+0x8A09 NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingFlags                                     SharingFlags
+0x8A0A NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingProviderExtension                         SharingProviderExtension
+0x8A0B NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemoteUser                                SharingRemoteUser
+0x8A0C NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemotePass                                SharingRemotePass
+0x8A0D NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingLocalPath                                 SharingLocalPath
+0x8A0E NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingLocalName                                 SharingLocalName
+0x8A0F NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+
+PidLidSharingLocalUid                                  SharingLocalUid
+0x8A10 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingFilter                                    SharingFilter
+0x8A13 NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingLocalType                                 SharingLocalType
+0x8A14 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingFolderEntryId                             SharingFolderEid
+0x8A15 NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingCapabilities                              SharingCaps
+0x8A17 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingFlavor                                    SharingFlavor
+0x8A18 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingAnonymity                                 SharingAnonymity
+0x8A19 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingReciprocation                             SharingReciprocation
+0x8A1A NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingPermissions                               SharingPermissions
+0x8A1B NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingInstanceGuid                              SharingInstanceGuid
+0x8A1C NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingRemoteType                                SharingRemoteType
+0x8A1D NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingParticipants                              SharingParticipants
+0x8A1E NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingLastSyncTime                              SharingLastSync
+0x8A1F NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingExtensionXml                              SharingExtXml
+0x8A21 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemoteLastModificationTime                SharingRemoteLastMod
+0x8A22 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingLocalLastModificationTime                 SharingLocalLastMod
+0x8A23 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingConfigurationUrl                          SharingConfigUrl
+0x8A24 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingStart                                     SharingStart
+0x8A25 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingStop                                      SharingStop
+0x8A26 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingResponseType                              SharingResponseType
+0x8A27 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingResponseTime                              SharingResponseTime
+0x8A28 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingOriginalMessageEntryId
+SharingOriginalMessageEid     0x8A29 NULL                          PT_BINARY
+MNID_ID     PSETID_Sharing
+PidLidSharingSyncInterval                              SharingSyncInterval
+0x8A2A NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingDetail                                    SharingDetail
+0x8A2B NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingTimeToLive                                SharingTimeToLive
+0x8A2C NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingBindingEntryId                            SharingBindingEid
+0x8A2D NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingIndexEntryId                              SharingIndexEid
+0x8A2E NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingRemoteComment                             SharingRemoteComment
+0x8A2F NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingWorkingHoursStart                         SharingWorkingHoursStart
+0x8A40 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingWorkingHoursEnd                           SharingWorkingHoursEnd
+0x8A41 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingWorkingHoursDay                           SharingWorkingHoursDays
+0x8A42 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingWorkingHoursTimeZone                      SharingWorkingHoursTZ
+0x8A43 NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingDataRangeStart                            SharingDataRangeStart
+0x8A44 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingDataRangeEnd                              SharingDataRangeEnd
+0x8A45 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingRangeStart                                SharingRangeStart
+0x8A46 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingRangeEnd                                  SharingRangeEnd
+0x8A47 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingRemoteStoreUid                            SharingRemoteStoreUid
+0x8A48 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingLocalStoreUid                             SharingLocalStoreUid
+0x8A49 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRemoteByteSize                            SharingRemoteByteSize
+0x8A4B NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingRemoteCrc                                 SharingRemoteCrc
+0x8A4C NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingLocalComment                              SharingLocalComment
+0x8A4D NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingRoamLog                                   SharingRoamLog
+0x8A4E NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingRemoteMessageCount                        SharingRemoteMsgCount
+0x8A4F NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingBrowseUrl                                 SharingBrowseUrl
+0x8A51 NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingLastAutoSyncTime                          SharingLastAutoSync
+0x8A55 NULL                          PT_SYSTIME    MNID_ID     PSETID_Sharing
+PidLidSharingTimeToLiveAuto                            SharingTimeToLiveAuto
+0x8A56 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+PidLidSharingRemoteVersion                             SharingRemoteVersion
+0x8A5B NULL                          PT_UNICODE    MNID_ID     PSETID_Sharing
+PidLidSharingParentBindingEntryId                      SharingParentBindingEid
+0x8A5C NULL                          PT_BINARY     MNID_ID     PSETID_Sharing
+PidLidSharingSyncFlags                                 SharingSyncFlags
+0x8A60 NULL                          PT_LONG       MNID_ID     PSETID_Sharing
+3.23.11.	Note named properties
+Named properties mapped to the Note interface GUID: 0006200e-0000-0000-c000-000000000046.
+Item type	Value type	Identifier	Description
+0x8b00	0x0003		Color
+Integer 32-bit signed
+
+0x8b02	0x0003		Width
+Integer 32-bit signed
+0x8b03	0x0003		Height
+Integer 32-bit signed
+0x8b04	0x0003		Left
+Item type	Value type	Identifier	Description
+			Integer 32-bit signed
+0x8b05	0x0003		Top Integer 32-bit signed
+3.23.12.	Public strings named properties
+Named properties mapped to the public strings interface GUID: 00020329-0000-0000-c000-
+000000000046
+Item type	Value type	Identifier	Description
+0x0000			Keywords
+
+### OOM	                      propID propName  propType	     Kind	 OLEGUID
+### PS_PUBLIC_STRINGS
+NULL                          0x0000 Keywords                      PT_MV_STRING8 MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                          0x0000 urn:schemas:contacts:fileas   PT_STRING8    MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                          0x0000 urn:schemas:calendar:sequence PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                          0x0000 urn:schemas:calendar:version  PT_STRING8 MNID_STRING
+PS_PUBLIC_STRINGS
+PidLidCategories                                       Categories
+0x2328 NULL                          PT_MV_STRING8 MNID_ID
+PS_PUBLIC_STRINGS
+PidNameApplicationName                                 NULL
+0x0000 AppName                       PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameAuthor                                          NULL
+0x0000 Author                        PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameByteCount                                       NULL
+0x0000 ByteCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameCategory                                        NULL
+0x0000 Category                      PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameCharacterCount                                  NULL
+0x0000 CharCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameComments                                        NULL
+0x0000 Comments                      PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameCompany                                         NULL
+0x0000 Company                       PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameCreateDateTimeReadOnly                          NULL
+0x0000 CreateDtmRo                   PT_SYSTIME    MNID_STRING
+PS_PUBLIC_STRINGS
+
+PidNameRightsManagementLicense                         NULL
+0x0000 DRMLicense                    PT_MV_BINARY  MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameEditTime                                        NULL
+0x0000 EditTime                      PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameJunkEmailMoveStamp                              NULL
+0x0000 http://schemas.microsoft.com/exchange/junkemailmovestamp PT_LONG
+MNID_STRING PS_PUBLIC_STRINGS
+PidNameHiddenCount                                     NULL
+0x0000 HiddenCount                   PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameKeywords                                        NULL
+0x0000 Keywords                      PT_MV_STRING8 MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameLastAuthor                                      NULL
+0x0000 LastAuthor                    PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameLastPrinted                                     NULL
+0x0000 LastPrinted                   PT_SYSTIME    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameLastSaveDateTime                                NULL
+0x0000 LastSaveDtm                   PT_SYSTIME    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameLineCount                                       NULL
+0x0000 LineCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameManager                                         NULL
+0x0000 Manager                       PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameMultimediaClipCount                             NULL
+0x0000 MMClipCount                   PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameNoteCount                                       NULL
+0x0000 NoteCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameOMSAccountGuid                                  NULL
+0x0000 OMSAccountGuid                PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameOMSMobileModel                                  NULL
+0x0000 OMSMobileModel                PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameOMSGScheduleTime                                NULL
+0x0000 OMSScheduleTime               PT_SYSTIME    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameOMSServiceType                                  NULL
+0x0000 OMSServiceType                PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameOMSSourceType                                   NULL
+0x0000 OMSSourceType                 PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNamePhishingStamp                                   NULL
+0x0000 http://schemas.microsoft.com/outlook/phishingstamp       PT_LONG
+MNID_STRING PS_PUBLIC_STRINGS
+PidNamePageCount                                       NULL
+0x0000 PageCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameParagraphCount                                  NULL
+0x0000 ParCount                      PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNamePresentationFormat                              NULL
+0x0000 PresFormat                    PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameSecurity                                        NULL
+0x0000 Security                      PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameSlideCount                                      NULL
+0x0000 SlideCount                    PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameSubject                                         NULL
+0x0000 Subject                       PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameTemplate                                        NULL
+0x0000 Template                      PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameTitle                                           NULL
+0x0000 Title                         PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+PidNameWordCount                                       NULL
+0x0000 WordCount                     PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                                                   NULL
+0x0000 urn:schemas:contacts:fileas   PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                                                   NULL
+0x0000 urn:schemas:calendar:sequence PT_LONG       MNID_STRING
+PS_PUBLIC_STRINGS
+NULL                                                   NULL
+0x0000 urn:schemas:calendar:version  PT_UNICODE    MNID_STRING
+PS_PUBLIC_STRINGS
+3.23.13.	Internet headers named properties
+Named properties mapped to the Internet headers interface GUID: 00020386-0000-0000-c000000000000046.
+Item type	Value type	Identifier	Description
+
+PidNameAcceptLanguage                                  AcceptLanguage
+0x0000 Accept-Language               PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameBodyContentBase                                 BodyContentBase
+0x0000 Content-Base                  PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameContentClass                                    NULL
+0x0000 Content-Class                 PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameContentTransferEncoding                         NULL
+0x0000 Content-Transfer-Encoding     PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameContentType                                     NULL
+0x0000 Content-Type                  PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameCrossReference                                  NULL
+0x0000 Xref                          PT_UNICODE    MNID_STRING PS_INTERNET_HEADERS
+PidNameXSharingBrowseUrl                               NULL
+0x0000 X-Sharing-Browse-Url          PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingCapabilities                            NULL
+0x0000 X-Sharing-Capabilities        PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingConfigUrl                               NULL
+0x0000 X-Sharing-Config-Url          PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingExtendedCaps                            NULL
+0x0000 X-Sharing-Extended-Caps       PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingFlavor                                  NULL
+0x0000 X-Sharing-Flavor              PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingInstanceGuid                            NULL
+0x0000 X-Sharing-Instance-Guid       PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingLocalType                               NULL
+0x0000 X-Sharing-Local-Type          PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingProviderGuid                            NULL
+0x0000 X-Sharing-Provider-Guid       PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingProviderName                            NULL
+0x0000 X-Sharing-Provider-Name       PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingProviderUrl                             NULL
+0x0000 X-Sharing-Provider-Url        PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingRemoteName                              NULL
+0x0000 X-Sharing-Remote-Name         PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingRemotePath                              NULL
+0x0000 X-Sharing-Remote-Path         PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingRemoteStoreUid                          NULL
+0x0000 X-Sharing-Remote-Store-Uid    PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingRemoteType                              NULL
+0x0000 X-Sharing-Remote-Type         PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+PidNameXSharingRemoteUid                               NULL
+0x0000 X-Sharing-Remote-Uid          PT_UNICODE    MNID_STRING
+PS_INTERNET_HEADERS
+3.23.14.	Attachment properties
+Named properties mapped to the Attachment interface GUID: 96357f7f-59e1-47d0-99a746515c183b54.
+Item type	Value type	Identifier	Description
+
+Item type	Value type	Identifier	Description
+
+### PSETID_Attachment
+PidNameAttachmentMacContentType                        NULL
+0x0000 AttachmentMacContentType      PT_UNICODE    MNID_STRING
+PSETID_Attachment
+PidNameAttachmentMacInfo                               NULL
+0x0000 AttachmentMacInfo             PT_BINARY     MNID_STRING
+PSETID_Attachment
+3.23.15.	Unified messaging properties
+Named properties mapped to the unified messaging interface GUID: 4442858e-a9e3-4e80-b900317a210cc15b.
+Item type	Value type	Identifier	Description
+
+
+### PSETID_UnifiedMessaging
+PidNameAudioNotes                                      UMAudioNotes
+0x0000 UMAudioNotes                  PT_UNICODE    MNID_STRING
+PSETID_UnifiedMessaging
+3.23.16.	Other named properties
+Named properties mapped to unknown interface GUID: 29f3ab56-554d-11d0-a97c-00a0c911f50a.
+Item type	Value type	Identifier	Description
+0xa000	0x0003		Unknown
+Integer 32-bit signed
+
+4.	MAPI data types
+4.1.	The message type
+The following message types are known:
+Message type	Usage
+IPM.Note	Note
+IPM	Note
+IPM.Contact	Contact
+REPORT.IPM.Note	Report
+REPORT.IPM.Note.NDR	Report non deliverable
+IPM.Activity	Journal
+IPM.Appointment	Appointment
+IPM.Taks	Taks
+IPM.Microsoft.ScheduleData.FreeBusy	Free Busy Schedule Data
+IPM.Microsoft.FolderDesign.NamedView
+IPM.Microsoft.WunderBar.SFInfo
+IPM.Microsoft.WunderBar.Link
+IPC.MS.Outlook.AgingProperties
+IPM.Schedule.Meeting.Request
+IPM.Note.Rules.OofTemplate.Microsoft
+Report.IPM.Note.IPNRN	Is used for message delivery/read notice?
+IPC.MS.Outlook.AgingProperties
+IPM.ContactLinkingViews
+IPM.Contact.OlTrans	(contact)
+IPM.DistList
+IPM.ExtendedRule.Message
+IPM.MessageManager
+IPM.Microsoft.FolderDesign.NamedView
+IPM.Microsoft.ScheduleData.FreeBusy
+IPM.Microsoft.WunderBar.Persistence
+IPM.Microsoft.WunderBar.SFInfo
+IPM.Note.Rules.OofTemplate.Microsoft
+IPM.Rule.Message
+IPM.RuleOrganizer	Outlook Rules Organizer
+IPM.Schedule.Meeting.Canceled	cancelation of meeting
+IPM.Schedule.Meeting.Request	request for meeting
+IPM.Schedule.Meeting.Resp.Neg	request is denied
+IPM.Schedule.Meeting.Resp.Pos	request is accepted
+IPM.Schedule.Meeting.Resp.Tent	new time proposal for meeting
+4.2.	The recipient/sender entry identifier structure
+The recipient/sender entry identifier structure has a value type of 0x0102 (Binary data).
+And is used by:
+•	0x003f (PR_RECEIVED_BY_ENTRYID)
+•	0x0041 (PR_SENT_REPRESENTING_ENTRYID)
+•	0x0043 (PR_RCVD_REPRESENTING_ENTRYID)
+•	0x0c19 (PR_SENDER_ENTRYID)
+The recipient/sender entry identifier structure consists of a variable size:
+offset	size	value	description
+0	4		Empty values
+4	16		GUID
+20	2		Unknown
+			00 00 -> SMTP
+			01 00 -> Exchange X500
+22	1
+			Unknown
+			00 -> Recipient
+			01 -> Sender
+22	...
+			Unknown
+			00 -> ASCII string array?
+			80 -> Unicode string array?
+			ASCII string terminated by \x00
+			Unicode string terminated by \x00\x00
+Received (PR_RECEIVED_BY_ENTRYID, PR_RCVD_REPRESENTING_ENTRYID)
+00 00
+00	00 <ASCII string (nickname)> 00
+ <ASCII string (SMTP)> 00
+ <ASCII string (e-mail address)> 00
+(outlook 2007)
+Received (PR_RECEIVED_BY_ENTRYID, PR_RCVD_REPRESENTING_ENTRYID)
+01	00
+00 00 00 00 00 00
+ <ASCII string (x500 address)> 00
+Sent (PR_SENT_REPRESENTING_ENTRYID, PR_SENDER_ENTRYID)
+00	00
+01	00 <ASCII string (nickname)> 00
+ <ASCII string (SMTP)> 00
+ <ASCII string (e-mail address)> 00
+(outlook 2007)
+00	00
+01	80 <UTF16 string (nickname)> 00 00
+ <UTF16 string (SMTP)> 00 00
+ <UTF16 string (e-mail address)> 00 00 00
+4.3.	The recipient/sender entries structure
+The recipient/sender entries structure has a value type of 0x0102 (Binary data).
+And is used by:
+•	0x004f (PR_REPLY_RECIPIENT_ENTRIES)
+The recipient/sender entries structure consists of a variable size:
+offset	size	value	description
+0	4		Unknown
+4	4		Unknown
+8	4		Unknown
+12	4		Unknown
+16	16		GUID
+32	2		Unknown
+34	...		Unknown
+			00 00 -> ASCII string array?
+4.4.	The change key structure
+The change key structure has a value type of 0x0102 (Binary data).
+And is used by:
+•	0x65e2 (PR_CHANGE_KEY)
+The change list structure consists of a variable size:
+offset	size	value	description
+10	16		GUID
+16	...		Data
+4.5.	The change list structure
+The change list structure has a value type of 0x0102 (Binary data).
+And is used by:
+•	0x65e3 (PR_PREDECESSOR_CHANGE_LIST)
+The change list structure consists of multiple entries of a variable size:
+offset	size	value	description
+0	1		Size
+1	16		GUID
+17	Size – 16		Data
+The first entry (GUID + Data) equals the search key
+4.6.	The 0x859c structure
+The 0x859c structure has a value type of 0x0102 (Binary data).
+And is used by:
+•	0x859c
+The 0x859c structure consists of multiple entries of a variable size:
+offset	size	value	description
+0	4		Empty
+4	16		GUID
+20	2		Unknown
+			01 00
+22	16		GUID
+38	4		Empty
+42	4		Unknown
+4.7.	The 0x36e4 structure
+Item type 0x36e4 with value type 0x0102
+00000000: 03 00 00 00 10 00 00 00   28 00 00 00 28 00 00 00 Array of 3 values followed by a folder information reference ?
+00000010: 00 00 00 00 c5 38 9f 82   8f 0f db 48 94 2b 2a dc
+00000020: ea c3 d5 0b 28 00 10 00
+Refers to “IPM.Microsoft.ScheduleData.FreeBusy”
+4.8.	The 0x686c structure
+Item type 0x686c with value type 0x0102
+00000000: ef be ad de 40 00 00 00   00 00 01 00 00 00 00 00
+00000010: 00 00 00 00 00 00 00 00   08 00 00 00 04 00 00 00
+00000020: 00 00 00 00 00 00 00 00   00 00 00 00 00 00 00 00
+00000030: 00 30 85 90 7a 93 c8 01   00 f0 4b 09 4c b2 c9 01
+4.9.	The embedded object information reference record
+The entry type should be of value type 0x000d (Embedded object)
+The Embedded object information reference record consists of 8 bytes:
+offset	size	value	description
+0	4		The descriptor index identifier
+4	4		The object size
+4.10.	The folder information reference record
+The entry type should be of value type 0x0102 (Binary data)
+The Folder information reference record is used by the following entry types:
+•	0x3416 (Folder information reference to "ItemProcSearch")
+•	0x35e0 (Folder information reference to “Top of Personal Folder”)
+•	0x35e2 (Folder information reference to “Outbox”)
+•	0x35e3 (Folder information reference to “Deleted Items”)
+•	0x35e4 (Folder information reference to “Sent Items”)
+•	0x35e5 (Folder information reference to “IPM_VIEWS”)
+•	0x35e6 (Folder information reference to “IPM_COMMON_VIEWS”)
+•	0x35e7 (Folder information reference to "Search Root")
+The Folder information reference record consists of 24 bytes:
+offset	size	value	description
+0	4		Empty values
+4	16		The GUID
+20	4		The folder information descriptor index identifier
+In 64-bit pst
+libpff_table_read_entry_value: table set: 00 entry: 004 item entry type
+: 0x3416 (Folder information reference to "ItemProcSearch")
+libpff_table_read_entry_value: table set: 00 entry: 004 item entry value type
+: 0x0102 (Binary data)
+libpff_table_read_entry_value: table set: 00 entry: 004 item entry value
+: at offset: 368 of size: 46
+00000000: 00 00 00 00 43 47 e2 94   10 01 03 40 a1 03 7e 01
+00000010: 05 4f 2e 69 01 00 38 12   ec 33 e1 a4 38 44 bd 5c
+00000020: 54 32 64 30 01 52 00 00   0e 34 00 03 00 00
+5.	Notes
+5.1.	Other class identifiers
+Class identifier	Interface
+00000000-0000-0000-c000-000000000046	IUnknown
+00020400-0000-0000-c000-000000000046	IDispatch
+Appendix A. References
+[SMITH02]
+Title:	outlook.pst -- format of MS Outlook .pst file
+Author(s):	David Smith, Joe Nahmias, Brad Hards, Carl Byington
+URL:	http://hg.file-ten-sg.com/libpst/
+[OPENCHANGE]
+Title:	Openchange MAPI library
+URL:	http://www.openchange.org/index.php
+[MSDN]
+Title:	Microsoft Developer Network URL:	http://msdn.microsoft.com/
+Appendix B. GNU Free Documentation License
+Version 1.1, March 2000
+Copyright (C) 2000  Free Software Foundation, Inc.
+59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+Everyone is permitted to copy and distribute verbatim copies of this license document, but changing it is not allowed.
+0.	PREAMBLE
+The purpose of this License is to make a manual, textbook, or other written document "free" in the sense of freedom: to assure everyone the effective freedom to copy and redistribute it, with or without modifying it, either commercially or noncommercially. Secondarily, this License preserves for the author and publisher a way to get credit for their work, while not being considered responsible for modifications made by others.
+This License is a kind of "copyleft", which means that derivative works of the document must themselves be free in the same sense. It complements the GNU General Public License, which is a copyleft license designed for free software.
+We have designed this License in order to use it for manuals for free software, because free software needs free documentation: a free program should come with manuals providing the same freedoms that the software does. But this License is not limited to software manuals; it can be used for any textual work, regardless of subject matter or whether it is published as a printed book. We recommend this License principally for works whose purpose is instruction or reference.
+1.	APPLICABILITY AND DEFINITIONS
+This License applies to any manual or other work that contains a notice placed by the copyright holder saying it can be distributed under the terms of this License. The "Document", below, refers to any such manual or work. Any member of the public is a licensee, and is addressed as "you".
+A "Modified Version" of the Document means any work containing the Document or a portion of it, either copied verbatim, or with modifications and/or translated into another language.
+A "Secondary Section" is a named appendix or a front-matter section of the Document that deals exclusively with the relationship of the publishers or authors of the Document to the Document's overall subject (or to related matters) and contains nothing that could fall directly within that overall subject. (For example, if the Document is in part a textbook of mathematics, a Secondary Section may not explain any mathematics.) The relationship could be a matter of historical connection with the subject or with related matters, or of legal, commercial, philosophical, ethical or political position regarding them.
+The "Invariant Sections" are certain Secondary Sections whose titles are designated, as being those of Invariant Sections, in the notice that says that the Document is released under this License.
+The "Cover Texts" are certain short passages of text that are listed, as Front-Cover Texts or BackCover Texts, in the notice that says that the Document is released under this License.
+A "Transparent" copy of the Document means a machine-readable copy, represented in a format whose specification is available to the general public, whose contents can be viewed and edited directly and straightforwardly with generic text editors or (for images composed of pixels) generic paint programs or (for drawings) some widely available drawing editor, and that is suitable for input to text formatters or for automatic translation to a variety of formats suitable for input to text formatters. A copy made in an otherwise Transparent file format whose markup has been designed to thwart or discourage subsequent modification by readers is not Transparent. A copy that is not "Transparent" is called "Opaque".
+Examples of suitable formats for Transparent copies include plain ASCII without markup, Texinfo input format, LaTeX input format, SGML or XML using a publicly available DTD, and standardconforming simple HTML designed for human modification. Opaque formats include PostScript, PDF, proprietary formats that can be read and edited only by proprietary word processors, SGML or XML for which the DTD and/or processing tools are not generally available, and the machinegenerated HTML produced by some word processors for output purposes only.
+The "Title Page" means, for a printed book, the title page itself, plus such following pages as are needed to hold, legibly, the material this License requires to appear in the title page. For works in formats which do not have any title page as such, "Title Page" means the text near the most prominent appearance of the work's title, preceding the beginning of the body of the text.
+2.	VERBATIM COPYING
+You may copy and distribute the Document in any medium, either commercially or
+noncommercially, provided that this License, the copyright notices, and the license notice saying this License applies to the Document are reproduced in all copies, and that you add no other conditions whatsoever to those of this License. You may not use technical measures to obstruct or control the reading or further copying of the copies you make or distribute. However, you may accept compensation in exchange for copies. If you distribute a large enough number of copies you must also follow the conditions in section 3.
+You may also lend copies, under the same conditions stated above, and you may publicly display copies.
+3.	COPYING IN QUANTITY
+If you publish printed copies of the Document numbering more than 100, and the Document's license notice requires Cover Texts, you must enclose the copies in covers that carry, clearly and legibly, all these Cover Texts: Front-Cover Texts on the front cover, and Back-Cover Texts on the back cover. Both covers must also clearly and legibly identify you as the publisher of these copies. The front cover must present the full title with all words of the title equally prominent and visible. You may add other material on the covers in addition. Copying with changes limited to the covers, as long as they preserve the title of the Document and satisfy these conditions, can be treated as verbatim copying in other respects.
+If the required texts for either cover are too voluminous to fit legibly, you should put the first ones listed (as many as fit reasonably) on the actual cover, and continue the rest onto adjacent pages.
+If you publish or distribute Opaque copies of the Document numbering more than 100, you must either include a machine-readable Transparent copy along with each Opaque copy, or state in or with each Opaque copy a publicly-accessible computer-network location containing a complete Transparent copy of the Document, free of added material, which the general network-using public has access to download anonymously at no charge using public-standard network protocols. If you use the latter option, you must take reasonably prudent steps, when you begin distribution of Opaque copies in quantity, to ensure that this Transparent copy will remain thus accessible at the stated location until at least one year after the last time you distribute an Opaque copy (directly or through your agents or retailers) of that edition to the public.
+It is requested, but not required, that you contact the authors of the Document well before redistributing any large number of copies, to give them a chance to provide you with an updated version of the Document.
+4. MODIFICATIONS
+You may copy and distribute a Modified Version of the Document under the conditions of sections 2 and 3 above, provided that you release the Modified Version under precisely this License, with the Modified Version filling the role of the Document, thus licensing distribution and modification of the Modified Version to whoever possesses a copy of it. In addition, you must do these things in the Modified Version:
+A.	Use in the Title Page (and on the covers, if any) a title distinct from that of the Document, and from those of previous versions (which should, if there were any, be listed in the History section of the Document). You may use the same title as a previous version if the original publisher of that version gives permission.
+B.	List on the Title Page, as authors, one or more persons or entities responsible for authorship of the modifications in the Modified Version, together with at least five of the principal authors of the Document (all of its principal authors, if it has less than five).
+C.	State on the Title page the name of the publisher of the Modified Version, as the publisher.
+D.	Preserve all the copyright notices of the Document.
+E.	Add an appropriate copyright notice for your modifications adjacent to the other copyright notices.
+F.	Include, immediately after the copyright notices, a license notice giving the public permission to use the Modified Version under the terms of this License, in the form shown in the Addendum below.
+G.	Preserve in that license notice the full lists of Invariant Sections and required Cover Texts given in the Document's license notice.
+H.	Include an unaltered copy of this License.
+I.	Preserve the section entitled "History", and its title, and add to it an item stating at least the title, year, new authors, and publisher of the Modified Version as given on the Title Page. If there is no section entitled "History" in the Document, create one stating the title, year, authors, and publisher of the Document as given on its Title Page, then add an item describing the Modified Version as stated in the previous sentence.
+J.	Preserve the network location, if any, given in the Document for public access to a Transparent copy of the Document, and likewise the network locations given in the Document for previous versions it was based on. These may be placed in the "History" section. You may omit a network location for a work that was published at least four years before the Document itself, or if the original publisher of the version it refers to gives permission.
+K.	In any section entitled "Acknowledgements" or "Dedications", preserve the section's title, and preserve in the section all the substance and tone of each of the contributor acknowledgements and/or dedications given therein.
+L.	Preserve all the Invariant Sections of the Document, unaltered in their text and in their titles.
+Section numbers or the equivalent are not considered part of the section titles.
+M.	Delete any section entitled "Endorsements". Such a section may not be included in the Modified Version.
+N.	Do not retitle any existing section as "Endorsements" or to conflict in title with any Invariant Section.
+If the Modified Version includes new front-matter sections or appendices that qualify as
+Secondary Sections and contain no material copied from the Document, you may at your option designate some or all of these sections as invariant. To do this, add their titles to the list of Invariant Sections in the Modified Version's license notice. These titles must be distinct from any other section titles.
+You may add a section entitled "Endorsements", provided it contains nothing but endorsements of your Modified Version by various parties--for example, statements of peer review or that the text has been approved by an organization as the authoritative definition of a standard.
+You may add a passage of up to five words as a Front-Cover Text, and a passage of up to 25 words as a Back-Cover Text, to the end of the list of Cover Texts in the Modified Version. Only one passage of Front-Cover Text and one of Back-Cover Text may be added by (or through arrangements made by) any one entity. If the Document already includes a cover text for the same cover, previously added by you or by arrangement made by the same entity you are acting on behalf of, you may not add another; but you may replace the old one, on explicit permission from the previous publisher that added the old one.
+The author(s) and publisher(s) of the Document do not by this License give permission to use their names for publicity for or to assert or imply endorsement of any Modified Version.
+5.	COMBINING DOCUMENTS
+You may combine the Document with other documents released under this License, under the terms defined in section 4 above for modified versions, provided that you include in the combination all of the Invariant Sections of all of the original documents, unmodified, and list them all as Invariant Sections of your combined work in its license notice.
+The combined work need only contain one copy of this License, and multiple identical Invariant Sections may be replaced with a single copy. If there are multiple Invariant Sections with the same name but different contents, make the title of each such section unique by adding at the end of it, in parentheses, the name of the original author or publisher of that section if known, or else a unique number. Make the same adjustment to the section titles in the list of Invariant Sections in the license notice of the combined work.
+In the combination, you must combine any sections entitled "History" in the various original documents, forming one section entitled "History"; likewise combine any sections entitled "Acknowledgements", and any sections entitled "Dedications". You must delete all sections entitled "Endorsements."
+6.	COLLECTIONS OF DOCUMENTS
+You may make a collection consisting of the Document and other documents released under this License, and replace the individual copies of this License in the various documents with a single copy that is included in the collection, provided that you follow the rules of this License for verbatim copying of each of the documents in all other respects.
+You may extract a single document from such a collection, and distribute it individually under this License, provided you insert a copy of this License into the extracted document, and follow this License in all other respects regarding verbatim copying of that document.
+7.	AGGREGATION WITH INDEPENDENT WORKS
+A compilation of the Document or its derivatives with other separate and independent documents or works, in or on a volume of a storage or distribution medium, does not as a whole count as a Modified Version of the Document, provided no compilation copyright is claimed for the compilation. Such a compilation is called an "aggregate", and this License does not apply to the other self-contained works thus compiled with the Document, on account of their being thus compiled, if they are not themselves derivative works of the Document.
+If the Cover Text requirement of section 3 is applicable to these copies of the Document, then if the Document is less than one quarter of the entire aggregate, the Document's Cover Texts may be placed on covers that surround only the Document within the aggregate. Otherwise they must appear on covers around the whole aggregate.
+8.	TRANSLATION
+Translation is considered a kind of modification, so you may distribute translations of the Document under the terms of section 4. Replacing Invariant Sections with translations requires special permission from their copyright holders, but you may include translations of some or all Invariant Sections in addition to the original versions of these Invariant Sections. You may include a translation of this License provided that you also include the original English version of this License. In case of a disagreement between the translation and the original English version of this License, the original English version will prevail.
+9.	TERMINATION
+You may not copy, modify, sublicense, or distribute the Document except as expressly provided for under this License. Any other attempt to copy, modify, sublicense or distribute the Document is void, and will automatically terminate your rights under this License. However, parties who have received copies, or rights, from you under this License will not have their licenses terminated so long as such parties remain in full compliance.
+10.	FUTURE REVISIONS OF THIS LICENSE
+The Free Software Foundation may publish new, revised versions of the GNU Free Documentation License from time to time. Such new versions will be similar in spirit to the present version, but may differ in detail to address new problems or concerns. See http://www.gnu.org/copyleft/.
+Each version of the License is given a distinguishing version number. If the Document specifies that a particular numbered version of this License "or any later version" applies to it, you have the option of following the terms and conditions either of that specified version or of any later version that has been published (not as a draft) by the Free Software Foundation. If the Document does not specify a version number of this License, you may choose any version ever published (not as a draft) by the Free Software Foundation.
