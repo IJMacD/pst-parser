@@ -8,8 +8,7 @@ import { TagNames } from "./TagNames.js";
 import { formatGuid } from "../util/formatGuid.js";
 
 export class PropertyContext extends BTreeOnHeap {
-    #subNodeAccessor;
-    #namedPropertyAccessor;
+    #pstContext;
 
     static PTYPE_UNSPECIFIED    = 0x0000;
     static PTYPE_NULL           = 0x0001;
@@ -37,14 +36,12 @@ export class PropertyContext extends BTreeOnHeap {
 
     /**
      * @param {{ data: DataView, blockOffsets: number[]}} data
-     * @param {(nid: number) => DataView} subNodeAccessor
-     * @param {(tag: number) => string?} namedPropertyAccessor
+     * @param {import("../file/PSTFile.js").PSTContext} pstContext
      */
-    constructor (data, subNodeAccessor, namedPropertyAccessor) {
+    constructor (data, pstContext) {
         super(data);
 
-        this.#subNodeAccessor = subNodeAccessor;
-        this.#namedPropertyAccessor = namedPropertyAccessor;
+        this.#pstContext = pstContext;
 
         if (this.bClientSig !== HeapNode.TYPE_PROPERTY_CONTEXT) {
             throw Error("HeapNode is not a PropertyContext. bClientSig: " + this.bClientSig.toString(16));
@@ -82,7 +79,7 @@ export class PropertyContext extends BTreeOnHeap {
     getValueByKey (key) {
         const record = this.#getPCRecordByKey(key);
 
-        if (!record) return;
+        if (!record) return null;
 
         if (record.wPropType === PropertyContext.PTYPE_STRING) {
             if (record.dwValueHnid === 0) return "";
@@ -91,7 +88,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const data = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = data;
 
@@ -103,7 +100,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             return (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
         }
 
         if (record.wPropType === PropertyContext.PTYPE_INTEGER16) {
@@ -143,7 +140,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
 
             return formatGuid(dv);
         }
@@ -155,7 +152,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = dv;
 
@@ -177,7 +174,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const data = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
 
             const { buffer, byteOffset, byteLength } = data;
 
@@ -195,7 +192,7 @@ export class PropertyContext extends BTreeOnHeap {
 
             const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
-                this.#subNodeAccessor(record.dwValueHnid);
+                this.#pstContext.getSubData(record.dwValueHnid);
 
             // const count = dv.getUint32(0, true);
             // console.log(`Multiple GUID debug: dv.byteLength = ${dv.byteLength}`);
@@ -210,6 +207,8 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         console.debug(`Unable to get data of type 0x${h(record.wPropType)}`);
+
+        return null;
     }
 
     getAllProperties () {
@@ -219,9 +218,10 @@ export class PropertyContext extends BTreeOnHeap {
 
     /**
      * @param {number} tag
+     * @returns {string?}
      */
     getTagName (tag) {
-        if (tag >= 0x8000) return this.#namedPropertyAccessor(tag);
-        return TagNames[tag];
+        if (tag >= 0x8000) return this.#pstContext.getNamedProperty(tag);
+        return TagNames[tag] || null;
     }
 }

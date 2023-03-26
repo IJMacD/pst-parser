@@ -4,12 +4,17 @@ import { propertiesToObject } from "../util/propertiesToObject.js";
 import { arrayBufferFromDataView } from "../util/arrayBufferFromDataView.js";
 import * as Tags from "../ltp/Tags.js";
 import { spGetSubject } from "../util/spGetSubject.js";
+import { MF_HAS_ATTACH } from "./MessageFlags.js";
+import { TableContext } from "../ltp/TableContext.js";
 
 export class Message {
+    #pstContext;
     #nid;
     #pc;
-    #file;
+    /** @type {TableContext?} */
     #recipients;
+    /** @type {TableContext?} */
+    #attachments;
 
     get nid () { return this.#nid; }
     // get nidParent () { return this.#node.nidParent; }
@@ -26,21 +31,25 @@ export class Message {
         }
     }
 
+    get hasAttachments () {
+        const flags = /** @type {number|undefined} */(this.#pc.getValueByKey(Tags.PID_TAG_MESSAGE_FLAGS));
+        if (typeof flags === "undefined") return;
+        return Boolean(flags & MF_HAS_ATTACH);
+    }
+
     /**
-     * @param {import("..").PSTFile} file
+     * @param {import("../file/PSTFile").PSTContext} pstContext
      * @param {number} nid
      * @param {PropertyContext} pc
      * @param {import('../ltp/TableContext').TableContext?} recipients
+     * @param {import('../ltp/TableContext').TableContext?} attachments
      */
-    constructor (file, nid, pc, recipients) {
-        this.#file = file;
+    constructor (pstContext, nid, pc, recipients, attachments) {
+        this.#pstContext = pstContext;
         this.#nid = nid;
         this.#pc = pc;
         this.#recipients = recipients;
-
-        // console.log(`Recipient Count: ${this.#recipients.recordCount}`);
-        // console.log(`Column Count: ${this.#recipients.columnDescriptions.length}`);
-        // console.log(this.#recipients.getAllRowProperties(0));
+        this.#attachments = attachments;
     }
 
     getAllProperties () {
@@ -56,6 +65,40 @@ export class Message {
             }
         }
 
-        return recipients
+        return recipients;
+    }
+
+    getAttachmentEntries () {
+        const attachments = [];
+
+        if (this.#attachments) {
+            for (let i = 0; i < this.#attachments.recordCount; i++) {
+                attachments.push(propertiesToObject(this.#attachments.getAllRowProperties(i)));
+            }
+        }
+
+        return attachments;
+    }
+
+    /**
+     * @param {number} index
+     */
+    getAttachment (index) {
+        if (index < 0) return null;
+
+        if (this.#attachments) {
+            const attachmentPCNid = this.#attachments.getCellValueByColumnTag(index, Tags.PID_TAG_LTP_ROW_ID);
+
+            if (typeof attachmentPCNid === "number") {
+                const pc = this.#pstContext.getSubPropertyContext(attachmentPCNid);
+
+                if (!pc) {
+                    throw Error("Unable to find Attachment PropertyContext");
+                }
+
+                return propertiesToObject(pc.getAllProperties());
+            }
+        }
+
     }
 }

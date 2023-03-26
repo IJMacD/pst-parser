@@ -3,12 +3,12 @@ import { arrayBufferFromDataView } from "./arrayBufferFromDataView.js";
 import { spGetSubject } from "./spGetSubject.js";
 
 /**
- * @typedef {{tag: number;tagHex: string;tagName: string;value: string | number | bigint | boolean | string[] | DataView | number[] | Date | undefined;}} PropertyData
+ * @typedef {{tag: number;tagHex: string;tagName: string?;value: string | number | bigint | boolean | string[] | DataView | number[] | Date | null;}} PropertyData
  */
+
 /**
  * @param {PropertyData[]} properties
  */
-
 export function propertiesToObject(properties) {
     const out = {};
     for (const prop of properties) {

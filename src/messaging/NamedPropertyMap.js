@@ -14,11 +14,10 @@ export class NamedPropertyMap extends PropertyContext {
 
     /**
      * @param {{ data: DataView; blockOffsets: number[]; }} data
-     * @param {(nid: number) => DataView} subDataAccessor
-     * @param {(tag: number) => string?} namedPropertyAccessor
+     * @param {import("../file/PSTFile.js").PSTContext} pstContext
      */
-    constructor (data, subDataAccessor, namedPropertyAccessor) {
-        super(data, subDataAccessor, namedPropertyAccessor);
+    constructor (data, pstContext) {
+        super(data, pstContext);
     }
 
     getTagName (tag) {

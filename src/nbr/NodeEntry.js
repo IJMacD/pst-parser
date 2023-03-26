@@ -38,6 +38,7 @@ export class NodeEntry {
     static NID_RESERVED3                    = 0x301; // Reserved.
     static NID_SEARCH_GATHERER_FOLDER_QUEUE = 0x321; // Search Gatherer Folder Queue (section 2.4.8.5.3).
 
+    static NID_ATTACHMENT_TABLE             = 0x671;
     static NID_RECIPIENT_TABLE              = 0x692;
 
     get nid () { return this.#dv.getBigUint64(0, true); }

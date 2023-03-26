@@ -23,6 +23,14 @@ import { Message } from "../messaging/Message.js";
 import { h } from "../util/util.js";
 import { NamedPropertyMap } from "../messaging/NamedPropertyMap.js";
 
+/**
+ * @typedef PSTContext
+ * @property {(internalNid: number) => DataView}            getSubData
+ * @property {(internalNid: number) => PropertyContext?}    getSubPropertyContext
+ * @property {(internalNid: number) => TableContext?}       getSubTableContext
+ * @property {(tag: number) => string?}                     getNamedProperty
+ */
+
 export class PSTFile {
     #buffer;
     #header;
@@ -92,6 +100,13 @@ export class PSTFile {
     }
 
     /**
+     *
+     */
+    getAllNodes () {
+        return this.getAllNodeKeys().map(nid => this.#getNode(nid));
+    }
+
+    /**
      * @param {number} nidType
      */
     getAllNodesOfType (nidType) {
@@ -128,6 +143,8 @@ export class PSTFile {
                 return new DataBlock(dv, entry.cb);
             }
         }
+
+        return null;
     }
 
     /**
@@ -200,12 +217,16 @@ export class PSTFile {
             return { data: new DataView(out), blockOffsets };
         }
 
+        if (block instanceof XXBlock) {
+            throw Error("Unimplemented: XXBlock");
+        }
+
         if (block instanceof SubnodeIntermediateBlock) {
             throw Error("Unimplemented: SubnodeIntermediateBlock");
         }
 
         if (block instanceof SubnodeLeafBlock) {
-            throw Error("You must use getNodeSubDataAccessor() to get Subnode data");
+            throw Error("You must use pstContext.getSubData() to get SubNode data");
         }
 
         throw Error("Unimplemented: Get data for block type 0x" + h(block.bType));
@@ -230,25 +251,34 @@ export class PSTFile {
 
     /**
      * @param {number | bigint} nid
-     * @returns {(internalNid: number) => DataView}
+     * @returns {PSTContext}
      */
-    #getNodeSubDataAccessor (nid) {
+    #getPSTContext (nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
 
-        if (!(entry instanceof NodeEntry)) {
-            throw Error("Expected NBT Entry");
-        }
+        const subNodeAccessor = this.#getSubNodeAccessor(
+            entry instanceof NodeEntry ? entry.bidSub : 0n
+        );
 
-        return (/** @type {number} */ internalNid) => {
+        return {
+            ...subNodeAccessor,
+            getNamedProperty: this.#getNamedProperty.bind(this),
+        };
+    }
 
-            if (entry.bidSub === 0n) {
-                return new DataView(new ArrayBuffer(0));
+    /**
+     * @param {bigint} bidSub
+     */
+    #getSubNodeAccessor (bidSub) {
+        const getSubEntry = (/** @type {number} */internalNid) => {
+            if (bidSub === 0n) {
+                return null;
             }
 
-            const block = this.#getBlock(entry.bidSub);
+            const block = this.#getBlock(bidSub);
 
             if (!block) {
-                throw Error("Unable to find block with bid " + entry.bidSub);
+                throw Error("Unable to find block with bid " + bidSub);
             }
 
             if (!(block instanceof SubnodeLeafBlock)) {
@@ -259,27 +289,93 @@ export class PSTFile {
                 const e = block.getEntry(i);
                 const nid = parseInt((e.nid & 0xFFFFFFFFn).toString());
                 if (nid === internalNid) {
-                    return this.#getBlockData(e.bidData).data;
+                    return e;
                 }
             }
 
-            throw Error(`SubnodeLeafBlock does not contain internal nid 0x${h(internalNid)}`);
+            // Not found
+            // DEBUGGING:
+
+            // console.debug(`Looking for Internal NID: 0x${h(internalNid)}`);
+            // console.debug(`SubNodeLeafBlock 0x${h(bidSub)} has ${block.cEnt} children`);
+            // for (let i = 0; i < block.cEnt; i++) {
+            //     const e = block.getEntry(i);
+            //     const nid = parseInt((e.nid & 0xFFFFFFFFn).toString());
+            //     console.debug(`Child ${i}: Internal NID 0x${h(nid)} NID Type 0x${h(NodeEntry.getNIDType(nid))}`);
+            //     const data = this.#getBlockData(e.bidData).data;
+            //     // const bufferData = stringFromBuffer(data.buffer, data.byteOffset, 16, "ascii");
+            //     // console.debug(bufferData);
+            //     console.debug({ arrayBuffer: arrayBufferFromDataView(data) });
+            // }
+
+            // throw Error(`SubnodeLeafBlock does not contain internal nid 0x${h(internalNid)}`);
+            return null;
+        };
+
+        const getSubData = (/** @type {number} internalNid */internalNid) => {
+            const subEntry = getSubEntry(internalNid);
+
+            if (subEntry) {
+                return this.#getBlockData(subEntry.bidData).data;
+            }
+
+            return new DataView(new ArrayBuffer(0));
+        };
+
+        const getSubPropertyContext = (/** @type {number} */ internalNid) => {
+            const subEntry = getSubEntry(internalNid);
+
+            if (!subEntry) {
+                return null;
+            }
+
+            const subData = getSubData(internalNid);
+
+            const pstContext = {
+                getNamedProperty: this.#getNamedProperty.bind(this),
+                ...this.#getSubNodeAccessor(subEntry?.bidSub || 0n),
+            };
+
+            return new PropertyContext({ data: subData, blockOffsets: [0] }, pstContext);
+        }
+
+        const getSubTableContext = (/** @type {number} */ internalNid) => {
+            const subEntry = getSubEntry(internalNid);
+
+            if (!subEntry) {
+                return null;
+            }
+
+            const subData = getSubData(internalNid);
+
+            const pstContext = {
+                getNamedProperty: this.#getNamedProperty.bind(this),
+                ...this.#getSubNodeAccessor(subEntry?.bidSub || 0n),
+            };
+
+            return new TableContext({ data: subData, blockOffsets: [0] }, pstContext);
+        }
+
+        return {
+            getSubData,
+            getSubPropertyContext,
+            getSubTableContext,
         }
     }
 
-    #getNamedPropertyAccessor () {
-        return (/** @type {number} */ tag) => {
-            if (!this.#namedPropertyMap) {
-                const nid = NodeEntry.NID_NAME_TO_ID_MAP;
-                const data = this.#getNodeData(nid);
-                const subDataAccessor = this.#getNodeSubDataAccessor(nid);
-                const namedPropertyAccessor = () => null;
+    /**
+     * @param {number} tag
+     * */
+    #getNamedProperty (tag) {
+        if (!this.#namedPropertyMap) {
+            const nid = NodeEntry.NID_NAME_TO_ID_MAP;
+            const data = this.#getNodeData(nid);
+            const pstContext = this.#getPSTContext(0);
 
-                this.#namedPropertyMap = new NamedPropertyMap(data, subDataAccessor, namedPropertyAccessor);
-            }
-
-            return this.#namedPropertyMap.getTagName(tag);
+            this.#namedPropertyMap = new NamedPropertyMap(data, pstContext);
         }
+
+        return this.#namedPropertyMap.getTagName(tag);
     }
 
     /**
@@ -287,11 +383,10 @@ export class PSTFile {
      */
     getPropertyContext (nid) {
         const data = this.#getNodeData(nid);
-        const subDataAccessor = this.#getNodeSubDataAccessor(nid);
-        const namedPropertyAccessor = this.#getNamedPropertyAccessor();
+        const pstContext = this.#getPSTContext(nid);
 
         if (data) {
-            return new PropertyContext(data, subDataAccessor, namedPropertyAccessor);
+            return new PropertyContext(data, pstContext);
         }
 
         return null;
@@ -302,10 +397,9 @@ export class PSTFile {
      */
     #getTableContext (nid) {
         const data = this.#getNodeData(nid);
-        const subDataAccessor = this.#getNodeSubDataAccessor(nid);
-        const namedPropertyAccessor = this.#getNamedPropertyAccessor();
+        const pstContext = this.#getPSTContext(nid);
 
-        return new TableContext(data, subDataAccessor, namedPropertyAccessor);
+        return new TableContext(data, pstContext);
     }
 
     getMessageStore () {
@@ -351,25 +445,13 @@ export class PSTFile {
         if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
             const pc = this.getPropertyContext(nid);
 
-            let recipientTable = null;
+            const pstContext = this.#getPSTContext(nid);
 
-            try {
-                const subDataAccessor = this.#getNodeSubDataAccessor(nid);
-                const subData = subDataAccessor(NodeEntry.NID_RECIPIENT_TABLE);
-
-                const subDataStub = () => new DataView(new ArrayBuffer(0));
-                const namedPropertyAccessor = this.#getNamedPropertyAccessor();
-
-                recipientTable = new TableContext({ data: subData, blockOffsets: [0] }, subDataStub, namedPropertyAccessor);
-            }
-            catch (e) {
-                // Messages are required to have recipient tables but apparantly
-                // they don't always
-                console.log(`NID=${nid} ${e.message}`);
-            }
+            let recipientTable = pstContext.getSubTableContext(NodeEntry.NID_RECIPIENT_TABLE);;
+            let attachmentTable = pstContext.getSubTableContext(NodeEntry.NID_ATTACHMENT_TABLE);
 
             if (pc) {
-                return new Message(this, nid, pc, recipientTable);
+                return new Message(pstContext, nid, pc, recipientTable, attachmentTable);
             }
         }
     }

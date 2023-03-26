@@ -8,11 +8,10 @@ import { stringFromBuffer } from "../util/stringFromBuffer.js";
 import { TagNames } from "./TagNames.js";
 
 export class TableContext extends HeapNode {
-    #subDataAccessor;
+    #pstContext;
     #info;
     #rowIndex;
     #blockOffsets;
-    #namedPropertyAccessor;
 
     get recordCount () { return this.#rowIndex.keys.length; }
 
@@ -22,10 +21,9 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {{ data: DataView, blockOffsets: number[] }} data
-     * @param {(nid: number) => DataView} subDataAccessor
-     * @param {(tag: number) => string} namedPropertyAccessor
+     * @param {import("../file/PSTFile.js").PSTContext} pstContext
      */
-    constructor (data, subDataAccessor, namedPropertyAccessor) {
+    constructor (data, pstContext) {
         super(data);
 
         if (this.bClientSig !== HeapNode.TYPE_TABLE_CONTEXT) {
@@ -34,8 +32,7 @@ export class TableContext extends HeapNode {
 
         this.#blockOffsets = data.blockOffsets;
 
-        this.#subDataAccessor = subDataAccessor;
-        this.#namedPropertyAccessor = namedPropertyAccessor;
+        this.#pstContext = pstContext;
 
         this.#info = new TableContextInfo(this.getItemByHID(this.hidUserRoot));
 
@@ -67,7 +64,7 @@ export class TableContext extends HeapNode {
         const rowMatrix =
             (nidType === NodeEntry.NID_TYPE_HID) ?
                 this.getItemByHID(this.#info.hnidRows) :
-                this.#subDataAccessor(this.#info.hnidRows);
+                this.#pstContext.getSubData(this.#info.hnidRows);
 
         if (!rowMatrix) {
             throw Error("Unable to locate RowMatrix");
@@ -159,10 +156,13 @@ export class TableContext extends HeapNode {
      * @param {number} columnTag
      */
     getCellValueByColumnTag (rowIndex, columnTag) {
+        if (rowIndex < 0 || rowIndex >= this.recordCount)
+            return null;
+
         const columnDesc = this.#info.colDescriptions.find(desc => desc.dataTag === columnTag);
 
         if (!columnDesc)
-            return;
+            return null;
 
         const cellData = this.#getCellDataByColDesc(rowIndex, columnDesc);
 
@@ -219,6 +219,8 @@ export class TableContext extends HeapNode {
             console.log(e);
             console.error(`Unable to get data for rowIndex: ${rowIndex} tag: 0x${h(columnTag)} cellData: 0x${h(cellData)} dataType: 0x${h(columnDesc.dataType)}`);
         }
+
+        return null;
     }
 
     /**
@@ -231,9 +233,10 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {number} tag
+     * @returns {string?}
      */
     getTagName (tag) {
-        if (tag >= 0x8000) return this.#namedPropertyAccessor(tag);
-        return TagNames[tag];
+        if (tag >= 0x8000) return this.#pstContext.getNamedProperty(tag);
+        return TagNames[tag] || null;
     }
 }
