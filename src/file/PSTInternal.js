@@ -222,7 +222,7 @@ export class PSTInternal {
             throw Error("You must use pstContext.getSubData() to get SubNode data");
         }
 
-        throw Error("Unimplemented: Get data for block type 0x" + h(block.bType));
+        throw Error("Unimplemented: Get data for block type 0x" + h(block['bType']));
     }
 
     /**
@@ -287,21 +287,7 @@ export class PSTInternal {
             }
 
             // Not found
-            // DEBUGGING:
 
-            // console.debug(`Looking for Internal NID: 0x${h(internalNid)}`);
-            // console.debug(`SubNodeLeafBlock 0x${h(bidSub)} has ${block.cEnt} children`);
-            // for (let i = 0; i < block.cEnt; i++) {
-            //     const e = block.getEntry(i);
-            //     const nid = parseInt((e.nid & 0xFFFFFFFFn).toString());
-            //     console.debug(`Child ${i}: Internal NID 0x${h(nid)} NID Type 0x${h(NodeEntry.getNIDType(nid))}`);
-            //     const data = this.#getBlockData(e.bidData).data;
-            //     // const bufferData = stringFromBuffer(data.buffer, data.byteOffset, 16, "ascii");
-            //     // console.debug(bufferData);
-            //     console.debug({ arrayBuffer: arrayBufferFromDataView(data) });
-            // }
-
-            // throw Error(`SubnodeLeafBlock does not contain internal nid 0x${h(internalNid)}`);
             return null;
         };
 

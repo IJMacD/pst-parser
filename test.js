@@ -1,9 +1,15 @@
 import * as PST from "./src/index.js";
 import fs from "fs";
+import util from "util";
 import { NodeEntry } from "./src/nbr/NodeEntry.js";
 import * as Tags from "./src/ltp/Tags.js";
 import { formatGuid } from "./src/util/formatGuid.js";
 import { h } from "./src/util/util.js";
+import { SubnodeLeafBlock } from "./src/nbr/SubnodeLeafBlock.js";
+import { PSTInternal } from "./src/file/PSTInternal.js";
+import { SubnodeLeafEntry } from "./src/nbr/SubnodeLeafEntry.js";
+import { XBlock } from "./src/nbr/XBlock.js";
+import { DataBlock } from "./src/nbr/DataBlock.js";
 
 /** @type {string} */
 let action;
@@ -32,9 +38,10 @@ else {
     nids message
     nids folder
     nids internal
+    node-block-tree
     message <nid>
     folder <nid>
-    folder_contents <nid>
+    folder-contents <nid>
     pc <nid>
     nameid
 
@@ -52,9 +59,10 @@ try {
     const byteBuffer = fs.readFileSync(filename);
 
     const pst = new PST.PSTFile(byteBuffer.buffer);
+    const pstInternal = new PSTInternal(byteBuffer.buffer);
 
     if (action === "info") {
-        printInfo(pst);
+        printInfo(pst, pstInternal);
     }
     else if (action === "folders") {
         const messageStore = pst.getMessageStore();
@@ -70,18 +78,21 @@ try {
         if (args.length) {
             const [typeName] = args;
             const type = {
-                "message": NodeEntry.NID_TYPE_NORMAL_MESSAGE,
-                "folder": NodeEntry.NID_TYPE_NORMAL_FOLDER,
+                "message":  NodeEntry.NID_TYPE_NORMAL_MESSAGE,
+                "folder":   NodeEntry.NID_TYPE_NORMAL_FOLDER,
                 "internal": NodeEntry.NID_TYPE_INTERNAL,
             }[typeName];
             if (!type) {
                 console.log(`Type '${typeName}' not found`);
                 process.exit();
             }
-            printNids(pst, type);
+            printNids(pstInternal, type);
         }
         else
-            printNids(pst);
+            printNids(pstInternal);
+    }
+    else if (action === "node-block-tree") {
+        printNodeEntries(pstInternal);
     }
     else if (action === "message") {
         if (args.length === 0) {
@@ -99,7 +110,7 @@ try {
 
         printFolder(pst, Number.parseInt(args[0]));
     }
-    else if (action === "folder_contents") {
+    else if (action === "folder-contents") {
         if (args.length === 0) {
             console.log("Folder nid not provided");
             process.exit();
@@ -113,10 +124,10 @@ try {
             process.exit();
         }
 
-        printPropertyContext(pst, Number.parseInt(args[0]));
+        printPropertyContext(pstInternal, Number.parseInt(args[0]));
     }
     else if (action === "nameid") {
-        printNameid(pst);
+        printNameid(pstInternal);
     }
     else {
         console.log(`Unknown action '${action}'`);
@@ -129,35 +140,35 @@ catch (e) {
 /**
  * @param {PST.PSTFile} pst
  */
-function printInfo (pst) {
+function printInfo (pst, pstInternal) {
 
     const messageStore = pst.getMessageStore();
     if (messageStore) {
         const table = {
             "Message Store display name": messageStore.displayName,
             "Has password": messageStore.hasPassword ? "yes" : "no",
-            "Node count": pst.getAllNodeKeys().length,
+            "Node count": pstInternal.getAllNodeKeys().length,
 
-            "NID_TYPE_HID"                     : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HID).length,
-            "NID_TYPE_INTERNAL"                : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_INTERNAL).length,
-            "NID_TYPE_NORMAL_FOLDER"           : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_FOLDER).length,
-            "NID_TYPE_SEARCH_FOLDER"           : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_FOLDER).length,
-            "NID_TYPE_NORMAL_MESSAGE"          : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_MESSAGE).length,
-            "NID_TYPE_ATTACHMENT"              : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHMENT).length,
-            "NID_TYPE_SEARCH_UPDATE_QUEUE"     : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_UPDATE_QUEUE).length,
-            "NID_TYPE_SEARCH_CRITERIA_OBJECT"  : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CRITERIA_OBJECT).length,
-            "NID_TYPE_ASSOC_MESSAGE"           : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_MESSAGE).length,
-            "NID_TYPE_CONTENTS_TABLE_INDEX"    : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE_INDEX).length,
-            "NID_TYPE_RECIEVE_FOLDER_TABLE"    : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIEVE_FOLDER_TABLE).length,
-            "NID_TYPE_OUTGOING_QUEUE_TABLE"    : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_OUTGOING_QUEUE_TABLE).length,
-            "NID_TYPE_HIERARCHY_TABLE"         : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HIERARCHY_TABLE).length,
-            "NID_TYPE_CONTENTS_TABLE"          : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE).length,
-            "NID_TYPE_ASSOC_CONTENTS_TABLE"    : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE).length,
-            "NID_TYPE_SEARCH_CONTENTS_TABLE"   : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CONTENTS_TABLE).length,
-            "NID_TYPE_ATTACHEMENT_TABLE"       : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHEMENT_TABLE).length,
-            "NID_TYPE_RECIPIENT_TABLE"         : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIPIENT_TABLE).length,
-            "NID_TYPE_SEARCH_TABLE_INDEX"      : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_TABLE_INDEX).length,
-            "NID_TYPE_LTP"                     : pst.getAllNodeKeysOfType(NodeEntry.NID_TYPE_LTP).length,
+            "NID_TYPE_HID"                     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HID).length,
+            "NID_TYPE_INTERNAL"                : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_INTERNAL).length,
+            "NID_TYPE_NORMAL_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_FOLDER).length,
+            "NID_TYPE_SEARCH_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_FOLDER).length,
+            "NID_TYPE_NORMAL_MESSAGE"          : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_MESSAGE).length,
+            "NID_TYPE_ATTACHMENT"              : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHMENT).length,
+            "NID_TYPE_SEARCH_UPDATE_QUEUE"     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_UPDATE_QUEUE).length,
+            "NID_TYPE_SEARCH_CRITERIA_OBJECT"  : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CRITERIA_OBJECT).length,
+            "NID_TYPE_ASSOC_MESSAGE"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_MESSAGE).length,
+            "NID_TYPE_CONTENTS_TABLE_INDEX"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE_INDEX).length,
+            "NID_TYPE_RECIEVE_FOLDER_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIEVE_FOLDER_TABLE).length,
+            "NID_TYPE_OUTGOING_QUEUE_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_OUTGOING_QUEUE_TABLE).length,
+            "NID_TYPE_HIERARCHY_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HIERARCHY_TABLE).length,
+            "NID_TYPE_CONTENTS_TABLE"          : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE).length,
+            "NID_TYPE_ASSOC_CONTENTS_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE).length,
+            "NID_TYPE_SEARCH_CONTENTS_TABLE"   : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CONTENTS_TABLE).length,
+            "NID_TYPE_ATTACHEMENT_TABLE"       : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHEMENT_TABLE).length,
+            "NID_TYPE_RECIPIENT_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIPIENT_TABLE).length,
+            "NID_TYPE_SEARCH_TABLE_INDEX"      : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_TABLE_INDEX).length,
+            "NID_TYPE_LTP"                     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_LTP).length,
         }
 
         console.table(table);
@@ -165,15 +176,15 @@ function printInfo (pst) {
 }
 
 /**
- * @param {PST.PSTFile} pst
+ * @param {PSTInternal} pstInternal
  * @param {number} [type]
  */
-function printNids (pst, type) {
+function printNids (pstInternal, type) {
     if (typeof type === "number") {
-        console.dir(pst.getAllNodeKeysOfType(type), {maxArrayLength:null});
+        console.dir(pstInternal.getAllNodeKeysOfType(type), {maxArrayLength:null});
     }
     else {
-        console.dir(pst.getAllNodeKeys(), {maxArrayLength:null});
+        console.dir(pstInternal.getAllNodeKeys(), {maxArrayLength:null});
     }
 }
 
@@ -235,17 +246,17 @@ function printFolder (pst, nid) {
 }
 
 /**
- * @param {PST.PSTFile} pst
+ * @param {PSTInternal} pstInternal
  * @param {number} nid
  */
-function printPropertyContext (pst, nid) {
-    const pc = pst.getPropertyContext(nid);
+function printPropertyContext (pstInternal, nid) {
+    const pc = pstInternal.getPropertyContext(nid);
 
     console.log(pc?.getAllProperties());
 }
 
 /**
- * @param {PST.PSTFile} pst
+ * @param {PSTInternal} pst
  */
 function printNameid (pst) {
     const pc = pst.getPropertyContext(NodeEntry.NID_NAME_TO_ID_MAP);
@@ -302,3 +313,50 @@ function printNameid (pst) {
         }
     }
 }
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printNodeEntries (pstInternal) {
+    const out = getNodeEntries(pstInternal, pstInternal.getAllNodes());
+
+    // console.log(util.inspect(out, {depth:null}));
+    console.log(JSON.stringify(out, null, 4));
+}
+
+/**
+ * @param {PSTInternal} pstInternal
+ * @param {NodeEntry[]|SubnodeLeafEntry[]} entries
+ */
+function getNodeEntries(pstInternal, entries) {
+    const out = [];
+
+    for (const entry of entries) {
+        const { nid, bidData, bidSub } = entry;
+
+        const data = pstInternal.getBlock(bidData);
+        const sub = pstInternal.getBlock(bidSub);
+
+        const node = {
+            nid: `0x${h(nid)}`,
+            bidData: `0x${h(bidData)}`,
+            bidSub: `0x${h(bidSub)}`,
+        };
+
+        if (data instanceof DataBlock) {
+            node.data = "DataBlock"
+        }
+        else if (data instanceof XBlock) {
+            node.data = { count: data.cEnt };
+        }
+
+        if (sub instanceof SubnodeLeafBlock) {
+            node.sub = getNodeEntries(pstInternal, sub.getAllEntries());
+        }
+
+        out.push(node);
+    }
+
+    return out;
+}
+
