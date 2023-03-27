@@ -1,4 +1,4 @@
-import { NodeEntry } from "../nbr/NodeEntry.js";
+import { NID_TYPE_HID } from "../nbr/NodeTypes.js";
 import { HeapNodePageMap } from "./HeapNodePageMap.js";
 import { h } from "../util/util.js";
 
@@ -99,7 +99,7 @@ export class HeapNode {
     static parseHid (hid) {
         const hidType = (hid & 0x1f);
 
-        if (hidType !== NodeEntry.NID_TYPE_HID) {
+        if (hidType !== NID_TYPE_HID) {
             throw Error("hid was not a HID (maybe a NID) Type: 0x" + h(hidType));
         }
 

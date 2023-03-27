@@ -4,9 +4,8 @@
  */
 
 export function arrayBufferFromDataView(dataView) {
-    if (dataView.byteOffset === 0
-        && dataView.byteLength === dataView.buffer.byteLength) {
-        // We don't need to slice anything. Just return the
+    if (dataView.byteOffset === 0 && dataView.byteLength === dataView.buffer.byteLength) {
+        // We don't need to slice anything. Just return the original buffer
         return dataView.buffer;
     }
 

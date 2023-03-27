@@ -1,4 +1,4 @@
-import { NodeEntry } from "../nbr/NodeEntry.js";
+import { getNIDType, NID_TYPE_HID } from "../nbr/NodeTypes.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { HeapNode } from "./HeapNode.js";
 import { h } from "../util/util.js";
@@ -36,7 +36,7 @@ export class PropertyContext extends BTreeOnHeap {
 
     /**
      * @param {{ data: DataView, blockOffsets: number[]}} data
-     * @param {import("../file/PSTFile.js").PSTContext} pstContext
+     * @param {import("../file/PSTInternal.js").PSTContext} pstContext
      */
     constructor (data, pstContext) {
         super(data);
@@ -84,9 +84,9 @@ export class PropertyContext extends BTreeOnHeap {
         if (record.wPropType === PropertyContext.PTYPE_STRING) {
             if (record.dwValueHnid === 0) return "";
 
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const data = (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
 
@@ -96,9 +96,9 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         if (record.wPropType === PropertyContext.PTYPE_BINARY) {
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            return (nidType === NodeEntry.NID_TYPE_HID) ?
+            return (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
         }
@@ -136,9 +136,9 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         if (record.wPropType === PropertyContext.PTYPE_GUID) {
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const dv = (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
 
@@ -148,9 +148,9 @@ export class PropertyContext extends BTreeOnHeap {
         if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_STRING) {
             if (record.dwValueHnid === 0) return [];
 
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const dv = (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
 
@@ -170,9 +170,9 @@ export class PropertyContext extends BTreeOnHeap {
         if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_INTEGER32) {
             if (record.dwValueHnid === 0) return [];
 
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            const data = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const data = (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
 
@@ -188,9 +188,9 @@ export class PropertyContext extends BTreeOnHeap {
         }
 
         if (record.wPropType === PropertyContext.PTYPE_MULTIPLE_GUID) {
-            const nidType = NodeEntry.getNIDType(record.dwValueHnid);
+            const nidType = getNIDType(record.dwValueHnid);
 
-            const dv = (nidType === NodeEntry.NID_TYPE_HID) ?
+            const dv = (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(record.dwValueHnid) :
                 this.#pstContext.getSubData(record.dwValueHnid);
 

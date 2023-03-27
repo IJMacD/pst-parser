@@ -1,5 +1,5 @@
 
-import { NodeEntry } from "../nbr/NodeEntry.js";
+import * as NodeTypes from "../nbr/NodeTypes.js";
 import { MessageStore } from "../messaging/MessageStore.js";
 import { Folder } from "../messaging/Folder.js";
 import { Message } from "../messaging/Message.js";
@@ -17,7 +17,7 @@ export class PSTFile {
     }
 
     getMessageStore () {
-        const pc = this.#internal.getPropertyContext(NodeEntry.NID_MESSAGE_STORE);
+        const pc = this.#internal.getPropertyContext(NodeTypes.NID_MESSAGE_STORE);
         if (pc) {
             return new MessageStore(this, pc);
         }
@@ -25,16 +25,16 @@ export class PSTFile {
     }
 
     getRootFolder () {
-        return this.getFolder(NodeEntry.NID_ROOT_FOLDER);
+        return this.getFolder(NodeTypes.NID_ROOT_FOLDER);
     }
 
     /**
      * @param {number} nid
      */
     getFolder (nid) {
-        const hierarchyNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_HIERARCHY_TABLE);
-        const contentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_CONTENTS_TABLE);
-        const assocContentsNid = NodeEntry.makeNID(nid, NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE);
+        const hierarchyNid = NodeTypes.makeNID(nid, NodeTypes.NID_TYPE_HIERARCHY_TABLE);
+        const contentsNid = NodeTypes.makeNID(nid, NodeTypes.NID_TYPE_CONTENTS_TABLE);
+        const assocContentsNid = NodeTypes.makeNID(nid, NodeTypes.NID_TYPE_ASSOC_CONTENTS_TABLE);
 
         const pc = this.#internal.getPropertyContext(nid);
 
@@ -56,13 +56,13 @@ export class PSTFile {
      * @param {number} nid
      */
     getMessage (nid) {
-        if (NodeEntry.getNIDType(nid) === NodeEntry.NID_TYPE_NORMAL_MESSAGE) {
+        if (NodeTypes.getNIDType(nid) === NodeTypes.NID_TYPE_NORMAL_MESSAGE) {
             const pc = this.#internal.getPropertyContext(nid);
 
             const pstContext = this.#internal.getPSTContext(nid);
 
-            let recipientTable = pstContext.getSubTableContext(NodeEntry.NID_RECIPIENT_TABLE);;
-            let attachmentTable = pstContext.getSubTableContext(NodeEntry.NID_ATTACHMENT_TABLE);
+            let recipientTable = pstContext.getSubTableContext(NodeTypes.NID_RECIPIENT_TABLE);;
+            let attachmentTable = pstContext.getSubTableContext(NodeTypes.NID_ATTACHMENT_TABLE);
 
             if (pc) {
                 return new Message(pstContext, nid, pc, recipientTable, attachmentTable);

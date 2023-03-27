@@ -1,4 +1,4 @@
-import { NodeEntry } from "../nbr/NodeEntry.js";
+import { getNIDType, NID_TYPE_HID } from "../nbr/NodeTypes.js";
 import { HeapNode } from "./HeapNode.js";
 import { BTreeOnHeap } from "./BTreeOnHeap.js";
 import { PropertyContext } from "./PropertyContext.js";
@@ -21,7 +21,7 @@ export class TableContext extends HeapNode {
 
     /**
      * @param {{ data: DataView, blockOffsets: number[] }} data
-     * @param {import("../file/PSTFile.js").PSTContext} pstContext
+     * @param {import("../file/PSTInternal.js").PSTContext} pstContext
      */
     constructor (data, pstContext) {
         super(data);
@@ -55,14 +55,10 @@ export class TableContext extends HeapNode {
         const blockIndex = Math.floor(N / rowsPerBlock);
         const rowIndex = N % rowsPerBlock;
 
-        const nidType = NodeEntry.getNIDType(this.#info.hnidRows);
-
-        if (nidType === NodeEntry.NID_TYPE_LTP && this.#info.hnidRows > 0x3F) {
-            throw Error(`Failure to get data from SubNode (Not first entry). Internal NID: 0x${h(this.#info.hnidRows)}`)
-        }
+        const nidType = getNIDType(this.#info.hnidRows);
 
         const rowMatrix =
-            (nidType === NodeEntry.NID_TYPE_HID) ?
+            (nidType === NID_TYPE_HID) ?
                 this.getItemByHID(this.#info.hnidRows) :
                 this.#pstContext.getSubData(this.#info.hnidRows);
 
@@ -170,7 +166,7 @@ export class TableContext extends HeapNode {
 
             if (columnDesc.dataType === PropertyContext.PTYPE_STRING) {
                 if (cellData === 0) return "";
-                if (NodeEntry.getNIDType(cellData) === NodeEntry.NID_TYPE_HID) {
+                if (getNIDType(cellData) === NID_TYPE_HID) {
                     const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
                     const { buffer, byteOffset, byteLength } = this.getItemByHID(hid);
                     return stringFromBuffer(buffer, byteOffset, byteLength);
@@ -178,8 +174,8 @@ export class TableContext extends HeapNode {
             }
 
             if (columnDesc.dataType === PropertyContext.PTYPE_BINARY) {
-                const nidType = NodeEntry.getNIDType(cellData);
-                if (nidType === NodeEntry.NID_TYPE_HID) {
+                const nidType = getNIDType(cellData);
+                if (nidType === NID_TYPE_HID) {
                     const hid = typeof cellData === "bigint" ? parseInt(cellData.toString()) : cellData;
                     return this.getItemByHID(hid);
                 }

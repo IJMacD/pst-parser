@@ -6,6 +6,7 @@ import { BREF } from "../nbr/BREF.js";
 import { DataBlock } from "../nbr/DataBlock.js";
 import { InternalBlock } from "../nbr/InternalBlock.js";
 import { NodeEntry } from "../nbr/NodeEntry.js";
+import { getNIDType, NID_NAME_TO_ID_MAP } from "../nbr/NodeTypes.js";
 import { BTPage, Page } from "../nbr/Page.js";
 import { CryptPermute } from "../nbr/permute.js";
 import { SubnodeIntermediateBlock } from "../nbr/SubnodeIntermediateBlock.js";
@@ -89,7 +90,7 @@ export class PSTInternal {
      */
     getAllNodeKeysOfType (nidType) {
         const nodeKeys = this.#rootNBTPage.getAllKeys();
-        return nodeKeys.filter(nid => NodeEntry.getNIDType(nid) === nidType);
+        return nodeKeys.filter(nid => getNIDType(nid) === nidType);
     }
 
     /**
@@ -347,7 +348,7 @@ export class PSTInternal {
      * */
     getNamedProperty (tag) {
         if (!this.#namedPropertyMap) {
-            const nid = NodeEntry.NID_NAME_TO_ID_MAP;
+            const nid = NID_NAME_TO_ID_MAP;
             const data = this.getNodeData(nid);
             const pstContext = this.getPSTContext(nid);
 

@@ -2,6 +2,7 @@ import * as PST from "./src/index.js";
 import fs from "fs";
 import util from "util";
 import { NodeEntry } from "./src/nbr/NodeEntry.js";
+import * as NodeTypes from "./src/nbr/NodeTypes.js";
 import * as Tags from "./src/ltp/Tags.js";
 import { formatGuid } from "./src/util/formatGuid.js";
 import { h } from "./src/util/util.js";
@@ -78,9 +79,9 @@ try {
         if (args.length) {
             const [typeName] = args;
             const type = {
-                "message":  NodeEntry.NID_TYPE_NORMAL_MESSAGE,
-                "folder":   NodeEntry.NID_TYPE_NORMAL_FOLDER,
-                "internal": NodeEntry.NID_TYPE_INTERNAL,
+                "message":  NodeTypes.NID_TYPE_NORMAL_MESSAGE,
+                "folder":   NodeTypes.NID_TYPE_NORMAL_FOLDER,
+                "internal": NodeTypes.NID_TYPE_INTERNAL,
             }[typeName];
             if (!type) {
                 console.log(`Type '${typeName}' not found`);
@@ -139,6 +140,7 @@ catch (e) {
 
 /**
  * @param {PST.PSTFile} pst
+ * @param {PSTInternal} pstInternal
  */
 function printInfo (pst, pstInternal) {
 
@@ -149,26 +151,26 @@ function printInfo (pst, pstInternal) {
             "Has password": messageStore.hasPassword ? "yes" : "no",
             "Node count": pstInternal.getAllNodeKeys().length,
 
-            "NID_TYPE_HID"                     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HID).length,
-            "NID_TYPE_INTERNAL"                : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_INTERNAL).length,
-            "NID_TYPE_NORMAL_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_FOLDER).length,
-            "NID_TYPE_SEARCH_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_FOLDER).length,
-            "NID_TYPE_NORMAL_MESSAGE"          : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_NORMAL_MESSAGE).length,
-            "NID_TYPE_ATTACHMENT"              : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHMENT).length,
-            "NID_TYPE_SEARCH_UPDATE_QUEUE"     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_UPDATE_QUEUE).length,
-            "NID_TYPE_SEARCH_CRITERIA_OBJECT"  : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CRITERIA_OBJECT).length,
-            "NID_TYPE_ASSOC_MESSAGE"           : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_MESSAGE).length,
-            "NID_TYPE_CONTENTS_TABLE_INDEX"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE_INDEX).length,
-            "NID_TYPE_RECIEVE_FOLDER_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIEVE_FOLDER_TABLE).length,
-            "NID_TYPE_OUTGOING_QUEUE_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_OUTGOING_QUEUE_TABLE).length,
-            "NID_TYPE_HIERARCHY_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_HIERARCHY_TABLE).length,
-            "NID_TYPE_CONTENTS_TABLE"          : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_CONTENTS_TABLE).length,
-            "NID_TYPE_ASSOC_CONTENTS_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ASSOC_CONTENTS_TABLE).length,
-            "NID_TYPE_SEARCH_CONTENTS_TABLE"   : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_CONTENTS_TABLE).length,
-            "NID_TYPE_ATTACHEMENT_TABLE"       : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_ATTACHEMENT_TABLE).length,
-            "NID_TYPE_RECIPIENT_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_RECIPIENT_TABLE).length,
-            "NID_TYPE_SEARCH_TABLE_INDEX"      : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_SEARCH_TABLE_INDEX).length,
-            "NID_TYPE_LTP"                     : pstInternal.getAllNodeKeysOfType(NodeEntry.NID_TYPE_LTP).length,
+            "NID_TYPE_HID"                     : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_HID).length,
+            "NID_TYPE_INTERNAL"                : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_INTERNAL).length,
+            "NID_TYPE_NORMAL_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_NORMAL_FOLDER).length,
+            "NID_TYPE_SEARCH_FOLDER"           : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_SEARCH_FOLDER).length,
+            "NID_TYPE_NORMAL_MESSAGE"          : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_NORMAL_MESSAGE).length,
+            "NID_TYPE_ATTACHMENT"              : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_ATTACHMENT).length,
+            "NID_TYPE_SEARCH_UPDATE_QUEUE"     : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_SEARCH_UPDATE_QUEUE).length,
+            "NID_TYPE_SEARCH_CRITERIA_OBJECT"  : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_SEARCH_CRITERIA_OBJECT).length,
+            "NID_TYPE_ASSOC_MESSAGE"           : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_ASSOC_MESSAGE).length,
+            "NID_TYPE_CONTENTS_TABLE_INDEX"    : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_CONTENTS_TABLE_INDEX).length,
+            "NID_TYPE_RECIEVE_FOLDER_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_RECIEVE_FOLDER_TABLE).length,
+            "NID_TYPE_OUTGOING_QUEUE_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_OUTGOING_QUEUE_TABLE).length,
+            "NID_TYPE_HIERARCHY_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_HIERARCHY_TABLE).length,
+            "NID_TYPE_CONTENTS_TABLE"          : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_CONTENTS_TABLE).length,
+            "NID_TYPE_ASSOC_CONTENTS_TABLE"    : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_ASSOC_CONTENTS_TABLE).length,
+            "NID_TYPE_SEARCH_CONTENTS_TABLE"   : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_SEARCH_CONTENTS_TABLE).length,
+            "NID_TYPE_ATTACHEMENT_TABLE"       : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_ATTACHEMENT_TABLE).length,
+            "NID_TYPE_RECIPIENT_TABLE"         : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_RECIPIENT_TABLE).length,
+            "NID_TYPE_SEARCH_TABLE_INDEX"      : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_SEARCH_TABLE_INDEX).length,
+            "NID_TYPE_LTP"                     : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_LTP).length,
         }
 
         console.table(table);
@@ -259,7 +261,7 @@ function printPropertyContext (pstInternal, nid) {
  * @param {PSTInternal} pst
  */
 function printNameid (pst) {
-    const pc = pst.getPropertyContext(NodeEntry.NID_NAME_TO_ID_MAP);
+    const pc = pst.getPropertyContext(NodeTypes.NID_NAME_TO_ID_MAP);
     if (!pc) {
         console.log("Can't find Nameid");
         process.exit();

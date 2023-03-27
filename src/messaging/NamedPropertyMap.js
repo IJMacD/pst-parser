@@ -14,7 +14,7 @@ export class NamedPropertyMap extends PropertyContext {
 
     /**
      * @param {{ data: DataView; blockOffsets: number[]; }} data
-     * @param {import("../file/PSTFile.js").PSTContext} pstContext
+     * @param {import("../file/PSTInternal.js").PSTContext} pstContext
      */
     constructor (data, pstContext) {
         super(data, pstContext);

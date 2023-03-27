@@ -38,7 +38,7 @@ export class Message {
     }
 
     /**
-     * @param {import("../file/PSTFile").PSTContext} pstContext
+     * @param {import("../file/PSTInternal").PSTContext} pstContext
      * @param {number} nid
      * @param {PropertyContext} pc
      * @param {import('../ltp/TableContext').TableContext?} recipients

@@ -4,11 +4,11 @@ export class XXBlock extends InternalBlock {
     #dv;
 
     /**
-     * @param {DataView} buffer
+     * @param {DataView} dv
      * @param {number} dataSize
      */
-    constructor (buffer, dataSize) {
-        super(buffer, dataSize);
+    constructor (dv, dataSize) {
+        super(dv, dataSize);
 
         this.#dv = dv;
     }
