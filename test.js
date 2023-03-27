@@ -144,11 +144,25 @@ catch (e) {
  */
 function printInfo (pst, pstInternal) {
 
+    const CRYPT_METHOD = {
+        0x00:   "None",
+        0x01:   "Permute",
+        0x02:   "Cyclic",
+        0x10:   "Windows Information Protection",
+    };
+
     const messageStore = pst.getMessageStore();
     if (messageStore) {
         const table = {
             "Message Store display name": messageStore.displayName,
-            "Has password": messageStore.hasPassword ? "yes" : "no",
+            "Has password": messageStore.hasPassword,
+            "Crypt Method": CRYPT_METHOD[pstInternal.cryptMethod],
+            "Header Modification Count": pstInternal.modificationCount,
+            "Header File Size": formatSizeBigInt(pstInternal.fileSize),
+            "Free Space": formatSizeBigInt(pstInternal.freeSpace),
+            "Next BID": pstInternal.nextBID,
+            "Rebuild Required": !pstInternal.aMapValid,
+
             "Node count": pstInternal.getAllNodeKeys().length,
 
             "NID_TYPE_HID"                     : pstInternal.getAllNodeKeysOfType(NodeTypes.NID_TYPE_HID).length,
@@ -360,5 +374,21 @@ function getNodeEntries(pstInternal, entries) {
     }
 
     return out;
+}
+
+/**
+ * @param {number} bytes
+ */
+function formatSize (bytes) {
+    const size = Math.floor(Math.log2(bytes) / 10);
+    return (bytes / Math.pow(2, size * 10)).toFixed(2) + " " + ["bytes", "kB", "MB", "GB"][size];
+}
+
+
+/**
+ * @param {bigint} bytes
+ */
+function formatSizeBigInt (bytes) {
+    return formatSize(parseInt(bytes.toString(), 10));
 }
 

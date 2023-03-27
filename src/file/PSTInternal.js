@@ -37,6 +37,18 @@ export class PSTInternal {
 
     static #PST_MAGIC = "!BDN";
 
+    get cryptMethod ()  { return this.#header.bCryptMethod; }
+
+    get nextBID ()  { return this.#header.bidNextB; }
+
+    get modificationCount ()  { return this.#header.dwUnique; }
+
+    get fileSize ()  { return this.#header.root.ibFileEof; }
+
+    get freeSpace () { return this.#header.root.cbAMapFree; }
+
+    get aMapValid () { return Boolean(this.#header.root.fAMapValid); }
+
     /**
      * @param {ArrayBufferLike} buffer
      */
