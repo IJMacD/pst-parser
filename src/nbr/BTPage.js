@@ -161,4 +161,38 @@ export class BTPage extends Page {
 
         return out;
     }
+
+    /**
+     *
+     * @param {BTPage} oldPage
+     * @param {BTPage} newPage
+     * @param {object} entry
+     * @param {bigint} entry.ib
+     * @param {bigint} entry.bid
+     * @param {number} entry.cb
+     * @param {number} entry.cRef
+     */
+    static insertEntry (oldPage, newPage, { ib, bid, cb, cRef }) {
+        if (oldPage.cLevel > 0) {
+            throw new Error("Method not implemented.");
+        }
+
+        throw new Error("Method not implemented.");
+
+
+        // if (oldPage.cEnt + 1 > oldPage.cEntMax) {
+        //     throw
+        // }
+
+        // newPage.cEntMax = oldPage.cEntMax;
+        // newPage.cEnt = oldPage.cEnt + 1;
+        // newPage.cLevel = oldPage.cLevel;
+        // newPage.cbEnt = oldPage.cEnt;
+        // newPage.dwCRC = calcuateCRC(newPage.getDataView(?, ?))
+
+        // for (let i = 0; i < oldPage.cEnt; i++) {
+
+        // }
+
+    }
 }

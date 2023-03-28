@@ -6,7 +6,9 @@ export class Page {
     get ptypeRepeat () { return this.#dv.getUint8(497); }
     get wSig () { return this.#dv.getUint16(498, true); }
     get dwCRC () { return this.#dv.getUint32(500, true); }
+
     get bid () { return this.#dv.getBigUint64(504, true); }
+    set bid (value) { this.#dv.setBigUint64(504, value, true); }
 
     /**
      * @param {DataView} dv

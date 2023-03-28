@@ -21,6 +21,8 @@ import { XXBlock } from "../nbr/XXBlock.js";
 import { h } from "../util/util.js";
 import { copyBuffer } from "../util/copyBuffer.js";
 import { Header } from "./Header.js";
+import { formatSize } from "../util/formatSize.js";
+import { Page } from "../nbr/Page.js";
 
 /**
  * @typedef PSTContext
@@ -95,11 +97,19 @@ export class PSTInternal {
     }
 
     /**
+     * @param {number | bigint} ib
+     * @param {number} size
+     */
+    getDataView (ib, size) {
+        const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
+        return new DataView(this.#buffer, offset, size);
+    }
+
+    /**
      * @param {number|bigint} ib
      */
     getPageDataView (ib) {
-        const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
-        return new DataView(this.#buffer, offset, 512);
+        return this.getDataView(ib, 512);
     }
 
     /**
@@ -108,7 +118,7 @@ export class PSTInternal {
     getAMapPage (n) {
         const ib = AMapPage.IB_INITIAL + AMapPage.IB_INTERVAL * n;
 
-        return new AMapPage(this.getPageDataView(ib));
+        return new AMapPage(this.getPageDataView(ib), ib);
     }
 
     getAMap () {
@@ -223,6 +233,81 @@ export class PSTInternal {
         }
 
         return new DataView(buffer);
+    }
+
+    /**
+     * @param {number} size
+     * @param {64|512} [alignment]
+     */
+    allocateBlock (size, alignment = 64) {
+        if (size % 64) {
+            throw Error("Allocations must be a multiple of 64 bytes");
+        }
+
+        if (size > 8192) {
+            throw Error("Allocations must be 8 kilobytes or less");
+        }
+
+        if (!this.aMapValid) {
+            throw Error("Cannot allocate while AMap is invalid");
+        }
+
+        const slotCount = size / 64;
+
+        const dListPage = this.getDListPage();
+        for (let i = 0; i < dListPage.cEntDList; i++) {
+            const dListEntry = dListPage.getEntry(i);
+            const aMapPage = this.getAMapPage(dListEntry.dwPageNum);
+
+            const ib = aMapPage.allocate(size, alignment);
+
+            if (ib) {
+                const slotCount = size / 64;
+                const mapByteCount = Math.ceil(slotCount / 8);
+                this.#header.root.cbAMapFree -= BigInt(mapByteCount * 8 * 64);
+
+                // TODO: Update DList
+
+                console.log(`Allocation for ${formatSize(size)} (${slotCount} slots) in AMap ${dListEntry.dwPageNum} @ ib = ${ib} (Using DList)`);
+                return ib;
+            }
+        }
+
+        for (let i = 0; i < this.aMapPageCount; i++) {
+            const aMapPage = this.getAMapPage(i);
+
+            const ib = aMapPage.allocate(size, alignment);
+
+            if (ib) {
+                console.log(`Allocation for ${formatSize(size)} (${slotCount} slots) in AMap ${i} @ ib = ${ib}`);
+                return ib;
+            }
+        }
+    }
+
+    allocatePage () {
+        const pageSize = 512;
+        const ib = this.allocateBlock(pageSize, 512);
+
+        if (ib) {
+            const bid = this.#header.bidNextP;
+
+            this.#header.bidNextB += 4n;
+            this.#header.bidNextP++;
+
+            const dv = this.getDataView(ib, pageSize);
+
+            const page = new Page(dv);
+
+            page.bid = bid;
+
+            // TODO: Insert bid into BBT
+            const cb = 512;
+            const cRef = 0;
+            // this.#rootBBTPage.insertEntry({ ib, bid, cb, cRef });
+
+            return page;
+        }
     }
 
     /**

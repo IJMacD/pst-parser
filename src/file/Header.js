@@ -20,7 +20,10 @@ export class Header {
     get dwReserved1 () { return this.#dv.getUint32(16, true); }
     get dwReserved2 () { return this.#dv.getUint32(20, true); }
     get bidUnused () { return this.#dv.getBigUint64(24, true); }
+
     get bidNextP () { return this.#dv.getBigUint64(32, true); }
+    set bidNextP (value) { this.#dv.setBigUint64(32, value, true); }
+
     get dwUnique () { return this.#dv.getUint32(40, true); }
     get rgnid () {
         const out = [];
@@ -46,7 +49,10 @@ export class Header {
     get bSentinel () { return this.#dv.getUint8(512); }
     get bCryptMethod () { return this.#dv.getUint8(513); }
     get rgbReserved () { return this.#dv.getUint16(514, true); }
+
     get bidNextB () { return this.#dv.getBigUint64(516, true); }
+    set bidNextB (value) { this.#dv.setBigUint64(516, value, true); }
+
     get dwCRCFull () { return this.#dv.getUint32(524, true); }
     get rgbReserved2 () { return this.#dv.getUint32(528, true) >> 8; }
     get bReserved () { return this.#dv.getUint8(531); }

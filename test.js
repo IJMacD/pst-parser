@@ -11,6 +11,7 @@ import { PSTInternal } from "./src/file/PSTInternal.js";
 import { SubnodeLeafEntry } from "./src/nbr/SubnodeLeafEntry.js";
 import { XBlock } from "./src/nbr/XBlock.js";
 import { DataBlock } from "./src/nbr/DataBlock.js";
+import { formatSizeBigInt, formatSize } from "./src/util/formatSize.js";
 
 /** @type {string} */
 let action;
@@ -50,6 +51,8 @@ else {
     dlist
     fmap
     fpmap
+    alloc <size>
+    alloc-page
 
     if <action> is unspecified it defaults to "info"
 `);
@@ -149,6 +152,12 @@ try {
     }
     else if (action === "fpmap") {
         printFPMap(pstInternal);
+    }
+    else if (action === "alloc") {
+        printAllocate(pstInternal, Number.parseInt(args[0]));
+    }
+    else if (action === "alloc-page") {
+        printAllocatePage(pstInternal);
     }
     else {
         console.log(`Unknown action '${action}'`);
@@ -404,23 +413,6 @@ function getNodeEntries(pstInternal, entries) {
 }
 
 /**
- * @param {number} bytes
- */
-function formatSize (bytes) {
-    if (bytes === 0) return "0 bytes";
-    const size = Math.floor(Math.log2(bytes) / 10);
-    return (bytes / Math.pow(2, size * 10)).toFixed(2) + " " + ["bytes", "kB", "MB", "GB"][size];
-}
-
-
-/**
- * @param {bigint} bytes
- */
-function formatSizeBigInt (bytes) {
-    return formatSize(parseInt(bytes.toString(), 10));
-}
-
-/**
  * @param {PSTInternal} pstInternal
  */
 function printAMap (pstInternal) {
@@ -512,4 +504,39 @@ function printFPMap (pstInternal) {
         out.push(fpMap.getUint8(i));
     }
     console.log(util.inspect(out, {maxArrayLength:null}));
+}
+
+/**
+ * @param {PSTInternal} pstInternal
+ * @param {number} size
+ */
+function printAllocate (pstInternal, size) {
+    console.log(`Free Space: ${formatSizeBigInt(pstInternal.freeSpace)}`);
+    const ib = pstInternal.allocateBlock(size);
+    if (ib) {
+        console.log(ib);
+        console.log(`Free Space: ${formatSizeBigInt(pstInternal.freeSpace)}`);
+        console.log("Current Contents: ");
+        console.log(pstInternal.getDataView(ib, size).buffer.slice(ib, ib + size));
+    }
+    else {
+        console.log("Failed to allocate");
+    }
+}
+
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printAllocatePage (pstInternal) {
+    console.log(`Free Space: ${formatSizeBigInt(pstInternal.freeSpace)}`);
+    const page = pstInternal.allocatePage();
+    if (page) {
+        console.log(page);
+        console.log(`Free Space: ${formatSizeBigInt(pstInternal.freeSpace)}`);
+        console.log("New Page BID: " + page.bid);
+    }
+    else {
+        console.log("Failed to allocate");
+    }
 }

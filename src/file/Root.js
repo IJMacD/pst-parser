@@ -6,7 +6,10 @@ export class Root {
     get dwReserved () { return this.#dv.getUint32(0, true); }
     get ibFileEof () { return this.#dv.getBigUint64(4, true); }
     get ibAMapLast () { return this.#dv.getBigUint64(12, true); }
+
     get cbAMapFree () { return this.#dv.getBigUint64(20, true); }
+    set cbAMapFree (value) { this.#dv.setBigUint64(20, value, true); }
+
     get cbPMapFree () { return this.#dv.getBigUint64(28, true); }
     get BREFNBT () { return new BREF(new DataView(this.#dv.buffer, this.#dv.byteOffset + 36)); }
     get BREFBBT () { return new BREF(new DataView(this.#dv.buffer, this.#dv.byteOffset + 52)); }
