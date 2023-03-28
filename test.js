@@ -45,6 +45,11 @@ else {
     folder-contents <nid>
     pc <nid>
     nameid
+    amap
+    pmap
+    dlist
+    fmap
+    fpmap
 
     if <action> is unspecified it defaults to "info"
 `);
@@ -130,6 +135,21 @@ try {
     else if (action === "nameid") {
         printNameid(pstInternal);
     }
+    else if (action === "amap") {
+        printAMap(pstInternal);
+    }
+    else if (action === "pmap") {
+        printPMap(pstInternal);
+    }
+    else if (action === "dlist") {
+        printDList(pstInternal);
+    }
+    else if (action === "fmap") {
+        printFMap(pstInternal);
+    }
+    else if (action === "fpmap") {
+        printFPMap(pstInternal);
+    }
     else {
         console.log(`Unknown action '${action}'`);
     }
@@ -160,7 +180,14 @@ function printInfo (pst, pstInternal) {
             "Header Modification Count": pstInternal.modificationCount,
             "Header File Size": formatSizeBigInt(pstInternal.fileSize),
             "Free Space": formatSizeBigInt(pstInternal.freeSpace),
+            "Free Page Space": formatSizeBigInt(pstInternal.freePageSpace),
+            "AMap Page Count": pstInternal.aMapPageCount,
+            "PMap Page Count": pstInternal.pMapPageCount,
+            "FMap Page Count": pstInternal.fMapPageCount,
+            "FPMap Page Count": pstInternal.fpMapPageCount,
+            "DList Entries": pstInternal.getDListPage().cEntDList,
             "Next BID": pstInternal.nextBID,
+            "Next Page": pstInternal.nextPage,
             "Rebuild Required": !pstInternal.aMapValid,
 
             "Node count": pstInternal.getAllNodeKeys().length,
@@ -380,6 +407,7 @@ function getNodeEntries(pstInternal, entries) {
  * @param {number} bytes
  */
 function formatSize (bytes) {
+    if (bytes === 0) return "0 bytes";
     const size = Math.floor(Math.log2(bytes) / 10);
     return (bytes / Math.pow(2, size * 10)).toFixed(2) + " " + ["bytes", "kB", "MB", "GB"][size];
 }
@@ -392,3 +420,96 @@ function formatSizeBigInt (bytes) {
     return formatSize(parseInt(bytes.toString(), 10));
 }
 
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printAMap (pstInternal) {
+    const aMap = pstInternal.getAMap();
+    const out = [];
+    let freeCount = 0;
+    for (let i = 0; i < aMap.byteLength; i++) {
+        const allocCount = bitCount(aMap.getUint8(i));
+        freeCount += 8 - allocCount;
+        // out.push(aMap.getUint8(i) ? "◼" : "◻");
+        // out.push(" ▁▂▃▄▅▆▇█"[bitCount(aMap.getUint8(i))]);
+        out.push(" ░░░▒▒▓▓█"[allocCount]);
+    }
+    console.log(out.join(""));
+    console.log(`Free Space: ${formatSize(freeCount * 64)}`);
+}
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printPMap (pstInternal) {
+    const pMap = pstInternal.getPMap();
+    const out = [];
+    let freeCount = 0;
+    for (let i = 0; i < pMap.byteLength; i++) {
+        const val = pMap.getUint8(i);
+        freeCount += zeroCount(val);
+        out.push(val === 0xFF ? "◼" : "◻");
+    }
+    console.log(out.join(""));
+    console.log(`Free Space: ${formatSize(freeCount * 512)}`);
+}
+
+/**
+ * @param {number} byte
+ */
+function bitCount (byte) {
+    let count = 0;
+    for (let i = 0; i < 8; i++) {
+        count += (byte & 0x01);
+        byte >>= 1;
+    }
+    return count;
+}
+
+function zeroCount (byte) {
+    return 8 - bitCount(byte);
+}
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printDList (pstInternal) {
+    const dList = pstInternal.getDListPage();
+
+    if (dList.cEntDList === 0) {
+        console.log("DList empty");
+        return;
+    }
+
+    const out = [];
+    for (let i = 0; i < dList.cEntDList; i++) {
+        const { dwPageNum, dwFreeSlots } = dList.getEntry(i);
+        out.push({ dwPageNum, dwFreeSlots });
+    }
+    console.table(out);
+}
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printFMap (pstInternal) {
+    const fMap = pstInternal.getFMap();
+    const out = [];
+    for (let i = 0; i < fMap.byteLength; i++) {
+        out.push(fMap.getUint8(i));
+    }
+    console.log(util.inspect(out, {maxArrayLength:null}));
+}
+
+
+/**
+ * @param {PSTInternal} pstInternal
+ */
+function printFPMap (pstInternal) {
+    const fpMap = pstInternal.getFPMap();
+    const out = [];
+    for (let i = 0; i < fpMap.byteLength; i++) {
+        out.push(fpMap.getUint8(i));
+    }
+    console.log(util.inspect(out, {maxArrayLength:null}));
+}

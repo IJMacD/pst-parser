@@ -37,11 +37,11 @@ export class Header {
     get dwAlign () { return this.#dv.getUint32(252, true); }
     get rgbFM () {
         const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 256, offset + 256 + 128);
+        return new DataView(this.#dv.buffer, offset + 256, 128);
     }
     get rgbFP () {
         const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 384, offset + 384 + 128);
+        return new DataView(this.#dv.buffer, offset + 384, 128);
     }
     get bSentinel () { return this.#dv.getUint8(512); }
     get bCryptMethod () { return this.#dv.getUint8(513); }
@@ -52,7 +52,7 @@ export class Header {
     get bReserved () { return this.#dv.getUint8(531); }
     get rgbReserved3 () {
         const offset = this.#dv.byteOffset;
-        return this.#dv.buffer.slice(offset + 532, offset + 532 + 32);
+        return new DataView(this.#dv.buffer, offset + 532, 32);
     }
 
     /**

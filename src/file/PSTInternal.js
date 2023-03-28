@@ -7,15 +7,21 @@ import { DataBlock } from "../nbr/DataBlock.js";
 import { InternalBlock } from "../nbr/InternalBlock.js";
 import { NodeEntry } from "../nbr/NodeEntry.js";
 import { getNIDType, NID_NAME_TO_ID_MAP } from "../nbr/NodeTypes.js";
-import { BTPage, Page } from "../nbr/Page.js";
+import * as PageFactory from "../nbr/PageFactory.js";
+import { DListPage } from "../nbr/DListPage.js";
+import { AMapPage } from "../nbr/AMapPage.js";
+import { BTPage } from "../nbr/BTPage.js";
+import { PMapPage } from "../nbr/PMapPage.js";
+import { FMapPage } from "../nbr/FMapPage.js";
+import { FPMapPage } from "../nbr/FPMapPage.js";
 import { CryptPermute } from "../nbr/permute.js";
 import { SubnodeIntermediateBlock } from "../nbr/SubnodeIntermediateBlock.js";
 import { SubnodeLeafBlock } from "../nbr/SubnodeLeafBlock.js";
 import { XBlock } from "../nbr/XBlock.js";
 import { XXBlock } from "../nbr/XXBlock.js";
 import { h } from "../util/util.js";
+import { copyBuffer } from "../util/copyBuffer.js";
 import { Header } from "./Header.js";
-
 
 /**
  * @typedef PSTContext
@@ -41,13 +47,37 @@ export class PSTInternal {
 
     get nextBID ()  { return this.#header.bidNextB; }
 
+    get nextPage ()  { return this.#header.bidNextP; }
+
     get modificationCount ()  { return this.#header.dwUnique; }
 
     get fileSize ()  { return this.#header.root.ibFileEof; }
 
     get freeSpace () { return this.#header.root.cbAMapFree; }
 
+    get freePageSpace () { return this.#header.root.cbPMapFree; }
+
     get aMapValid () { return Boolean(this.#header.root.fAMapValid); }
+
+    get aMapPageCount () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+        return (fileSize - AMapPage.IB_INITIAL) / AMapPage.IB_INTERVAL;
+    }
+
+    get pMapPageCount () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+        return Math.ceil((fileSize - PMapPage.IB_INITIAL) / PMapPage.IB_INTERVAL);
+    }
+
+    get fMapPageCount () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+        return Math.abs(Math.ceil((fileSize - FMapPage.IB_INITIAL) / FMapPage.IB_INTERVAL));
+    }
+
+    get fpMapPageCount () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+        return Math.abs(Math.ceil((fileSize - FPMapPage.IB_INITIAL) / FPMapPage.IB_INTERVAL));
+    }
 
     /**
      * @param {ArrayBufferLike} buffer
@@ -78,8 +108,155 @@ export class PSTInternal {
      */
     getPage (ib) {
         const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
-        const dv = new DataView(this.#buffer, offset);
-        return Page.getPage(dv);
+        const dv = new DataView(this.#buffer, offset, 512);
+        return PageFactory.getPage(dv);
+    }
+
+    /**
+     * @param {number} n
+     */
+    getAMapPage (n) {
+        const ib = AMapPage.IB_INITIAL + AMapPage.IB_INTERVAL * n;
+
+        const aMapPage = this.getPage(ib);
+
+        if (!(aMapPage instanceof AMapPage)) {
+            throw Error("AMapPage was not where it was expected");
+        }
+
+        return aMapPage;
+    }
+
+    getAMap () {
+        const buffer = new ArrayBuffer(this.aMapPageCount * 496);
+
+        for (let i = 0; i < this.aMapPageCount; i++) {
+            const aMapPage = this.getAMapPage(i);
+
+            const dv = aMapPage.getMap();
+
+            copyBuffer(new DataView(buffer, i * 496, 496), dv);
+        }
+
+        return new DataView(buffer);
+    }
+
+    /**
+     * @param {number} n
+     */
+    getPMapPage (n) {
+        const ib = PMapPage.IB_INITIAL + PMapPage.IB_INTERVAL * n;
+
+        const pMapPage = this.getPage(ib);
+
+        if (!(pMapPage instanceof PMapPage)) {
+            throw Error("PMapPage was not where it was expected");
+        }
+
+        return pMapPage;
+    }
+
+    /**
+     * @returns {DataView}
+     */
+    getPMap () {
+        const pMapCount = this.pMapPageCount;
+
+        const buffer = new ArrayBuffer(pMapCount * 496);
+
+        for (let i = 0; i < pMapCount; i++) {
+            const pMapPage = this.getPMapPage(i);
+
+            const dv = pMapPage.getMap();
+
+            copyBuffer(new DataView(buffer, i * 496, 496), dv);
+        }
+
+        return new DataView(buffer);
+    }
+
+    getDListPage () {
+        return /** @type {DListPage} */(this.getPage(DListPage.IB_DLIST));
+    }
+
+    /**
+     * @param {number} n
+     */
+    getFMapPage (n) {
+        const ib = FMapPage.IB_INITIAL + FMapPage.IB_INTERVAL * n;
+
+        const fMapPage = this.getPage(ib);
+
+        if (!(fMapPage instanceof FMapPage)) {
+            throw Error("FMapPage was not where it was expected");
+        }
+
+        return fMapPage;
+    }
+
+    /**
+     * @returns {DataView}
+     */
+    getFMap () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+
+        if (fileSize < FMapPage.IB_INITIAL) return this.#header.rgbFM;
+
+        const fMapCount = this.fMapPageCount;
+
+        const buffer = new ArrayBuffer(128 + fMapCount * 496);
+
+        copyBuffer(new DataView(buffer, 0, 128), this.#header.rgbFM);
+
+        for (let i = 0; i < fMapCount; i++) {
+            const fMapPage = this.getFMapPage(i);
+
+            const dv = fMapPage.getMap();
+
+            copyBuffer(new DataView(buffer, 128 + i * 496, 496), dv);
+        }
+
+        return new DataView(buffer);
+    }
+
+    /**
+     * @param {number} n
+     */
+    getFPMapPage (n) {
+        const ib = FPMapPage.IB_INITIAL + FPMapPage.IB_INTERVAL * n;
+
+        const fpMapPage = this.getPage(ib);
+
+        if (!(fpMapPage instanceof FPMapPage)) {
+            throw Error("FPMapPage was not where it was expected");
+        }
+
+        return fpMapPage;
+    }
+
+    /**
+     * @returns {DataView}
+     */
+    getFPMap () {
+        const fileSize = parseInt(this.#header.root.ibFileEof.toString());
+
+        if (fileSize < FPMapPage.IB_INITIAL) return this.#header.rgbFP;
+
+        const fMapCount = this.fMapPageCount;
+
+        const buffer = new ArrayBuffer(128 + fMapCount * 496);
+
+        copyBuffer(new DataView(buffer, 0, 128), this.#header.rgbFP);
+
+        for (let i = 0; i < fMapCount; i++) {
+            const fMapPage = this.getFPMapPage(i);
+
+            const dv = fMapPage.getMap();
+
+            copyBuffer(new DataView(buffer, 128 + i * 496, 496), dv);
+        }
+
+        return new DataView(buffer);
     }
 
     /**
