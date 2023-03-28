@@ -16,6 +16,10 @@ export class BTPage extends Page {
         super(dv);
 
         this.#dv = dv;
+
+        if (this.ptype !== 0x80 && this.ptype !== 0x81) {
+            throw Error("Page is not a BTreePage");
+        }
     }
 
     get cEnt() { return this.#dv.getUint8(488); }

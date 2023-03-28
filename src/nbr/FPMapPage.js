@@ -9,6 +9,17 @@ export class FPMapPage extends Page {
     static IB_INITIAL = 384 + 128 * fpMapCoveragePerByte;
     static IB_INTERVAL = 496 * fpMapCoveragePerByte;
 
+    /**
+     * @param {DataView} dv
+     */
+    constructor (dv) {
+        super(dv);
+
+        if (this.ptype !== 0x85) {
+            throw Error("Page is not an FPMap");
+        }
+    }
+
     getMap() {
         return this.getDataView(0, 496);
     }

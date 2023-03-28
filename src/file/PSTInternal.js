@@ -7,7 +7,6 @@ import { DataBlock } from "../nbr/DataBlock.js";
 import { InternalBlock } from "../nbr/InternalBlock.js";
 import { NodeEntry } from "../nbr/NodeEntry.js";
 import { getNIDType, NID_NAME_TO_ID_MAP } from "../nbr/NodeTypes.js";
-import * as PageFactory from "../nbr/PageFactory.js";
 import { DListPage } from "../nbr/DListPage.js";
 import { AMapPage } from "../nbr/AMapPage.js";
 import { BTPage } from "../nbr/BTPage.js";
@@ -90,26 +89,17 @@ export class PSTInternal {
             throw Error("Does not look like a PST file");
         }
 
-        const rootNBTPage = this.getPage(this.#header.root.BREFNBT.ib);
-        if (!(rootNBTPage instanceof BTPage)) {
-            throw Error("Root NBT Page was not correct page type");
-        }
-        this.#rootNBTPage = rootNBTPage;
+        this.#rootNBTPage = new BTPage(this.getPageDataView(this.#header.root.BREFNBT.ib));
 
-        const rootBBTPage = this.getPage(this.#header.root.BREFBBT.ib);
-        if (!(rootBBTPage instanceof BTPage)) {
-            throw Error("Root BBT Page was not correct page type");
-        }
-        this.#rootBBTPage = rootBBTPage;
+        this.#rootBBTPage = new BTPage(this.getPageDataView(this.#header.root.BREFBBT.ib));
     }
 
     /**
      * @param {number|bigint} ib
      */
-    getPage (ib) {
+    getPageDataView (ib) {
         const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
-        const dv = new DataView(this.#buffer, offset, 512);
-        return PageFactory.getPage(dv);
+        return new DataView(this.#buffer, offset, 512);
     }
 
     /**
@@ -118,13 +108,7 @@ export class PSTInternal {
     getAMapPage (n) {
         const ib = AMapPage.IB_INITIAL + AMapPage.IB_INTERVAL * n;
 
-        const aMapPage = this.getPage(ib);
-
-        if (!(aMapPage instanceof AMapPage)) {
-            throw Error("AMapPage was not where it was expected");
-        }
-
-        return aMapPage;
+        return new AMapPage(this.getPageDataView(ib));
     }
 
     getAMap () {
@@ -147,13 +131,7 @@ export class PSTInternal {
     getPMapPage (n) {
         const ib = PMapPage.IB_INITIAL + PMapPage.IB_INTERVAL * n;
 
-        const pMapPage = this.getPage(ib);
-
-        if (!(pMapPage instanceof PMapPage)) {
-            throw Error("PMapPage was not where it was expected");
-        }
-
-        return pMapPage;
+        return new PMapPage(this.getPageDataView(ib));
     }
 
     /**
@@ -176,7 +154,7 @@ export class PSTInternal {
     }
 
     getDListPage () {
-        return /** @type {DListPage} */(this.getPage(DListPage.IB_DLIST));
+        return new DListPage(this.getPageDataView(DListPage.IB_DLIST));
     }
 
     /**
@@ -185,13 +163,7 @@ export class PSTInternal {
     getFMapPage (n) {
         const ib = FMapPage.IB_INITIAL + FMapPage.IB_INTERVAL * n;
 
-        const fMapPage = this.getPage(ib);
-
-        if (!(fMapPage instanceof FMapPage)) {
-            throw Error("FMapPage was not where it was expected");
-        }
-
-        return fMapPage;
+        return new FPMapPage(this.getPageDataView(ib));
     }
 
     /**
@@ -225,13 +197,7 @@ export class PSTInternal {
     getFPMapPage (n) {
         const ib = FPMapPage.IB_INITIAL + FPMapPage.IB_INTERVAL * n;
 
-        const fpMapPage = this.getPage(ib);
-
-        if (!(fpMapPage instanceof FPMapPage)) {
-            throw Error("FPMapPage was not where it was expected");
-        }
-
-        return fpMapPage;
+        return new FPMapPage(this.getPageDataView(ib));
     }
 
     /**

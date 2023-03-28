@@ -19,6 +19,10 @@ export class DListPage extends Page {
         super(dv);
 
         this.#dv = dv;
+
+        if (this.ptype !== 0x86) {
+            throw Error("Page is not a DListPage");
+        }
     }
 
     /**
