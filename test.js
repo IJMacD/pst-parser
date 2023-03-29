@@ -40,7 +40,7 @@ else {
     nids folder
     nids internal
     node-block-tree
-    message <nid>
+    message <nid> [json]
     folder <nid>
     folder-contents <nid>
     pc <nid>
@@ -106,7 +106,7 @@ try {
             process.exit();
         }
 
-        printMessage(pst, Number.parseInt(args[0]));
+        printMessage(pst, Number.parseInt(args[0]), args[1]);
     }
     else if (action === "folder") {
         if (args.length === 0) {
@@ -264,11 +264,22 @@ function printFolderContents (pst, nid) {
 /**
  * @param {PST.PSTFile} pst
  * @param {number} nid
+ * @param {"nodejs"|"json"} nid
  */
-function printMessage (pst, nid) {
+function printMessage (pst, nid, mode="nodejs") {
     const message = pst.getMessage(nid);
 
-    console.log(message?.getAllProperties());
+    if (message) {
+        if (mode === "json") {
+            const properties = message.getAllProperties();
+            console.log(JSON.stringify(properties, (key, value) => {
+                if (value instanceof ArrayBuffer) return String.fromCharCode(...new Uint8Array(value));
+                return value;
+            }, 4));
+        } else {
+            console.log(message?.getAllProperties());
+        }
+    }
 }
 
 /**
