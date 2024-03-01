@@ -99,15 +99,18 @@ export class PSTInternal {
             throw Error("Does not look like a PST file");
         }
 
-        // if (this.#header.wMagicClient === PSTInternal.#OST_CLIENT_MAGIC) {
-        //     throw Error("Looks like an OST file. Not supported.");
-        // }
-
-        // if (this.#header.wMagicClient !== PSTInternal.#PST_CLIENT_MAGIC) {
-        //     throw Error("Does not look like a PST file. Not supported.");
-        // }
+        if (this.#header.wMagicClient !== PSTInternal.#OST_CLIENT_MAGIC &&
+            this.#header.wMagicClient !== PSTInternal.#PST_CLIENT_MAGIC) {
+            throw Error("Does not look like a PST file. Not supported.");
+        }
 
         const isOST2013 = this.#header.wVer === 36;
+
+        if (isOST2013) {
+            // Uses 4096 byte pages and different root folder ids?
+            // Not implemented yet
+            throw Error("OST 2013 version files are not supported yet.");
+        }
 
         this.#rootNBTPage = isOST2013 ?
             new BTPage2013(this.getDataView(this.#header.root.BREFNBT.ib, 4096)) :
