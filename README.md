@@ -63,7 +63,7 @@ It can read some (most?) parts of a PST file.
 
 ### Can it write to a PST file?
 
-No read only.
+No, read only.
 
 ### Will this break?
 
@@ -80,6 +80,10 @@ are not implemented.
 
 Fortunately it shouldn't. The library is read only, so unless something goes
 catastrophically wrong your data should be safe.
+
+### Do you have a demo site/project using this library?
+
+Yes, I do. See this demo web app https://ijmacd.github.io/pst-browser/ with its source at https://github.com/IJMacD/pst-browser.
 
 ### Can you give me a brief, very high level view of the layout, contents, structure and organisation of a PST file?
 
