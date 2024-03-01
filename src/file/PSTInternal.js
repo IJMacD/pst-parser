@@ -21,6 +21,7 @@ import { XXBlock } from "../nbr/XXBlock.js";
 import { h } from "../util/util.js";
 import { copyBuffer } from "../util/copyBuffer.js";
 import { Header } from "./Header.js";
+import { BTPage2013 } from "../nbr/BTPage2013.js";
 
 /**
  * @typedef PSTContext
@@ -42,38 +43,43 @@ export class PSTInternal {
 
     static #PST_MAGIC = "!BDN";
 
-    get cryptMethod ()  { return this.#header.bCryptMethod; }
+    static #PST_CLIENT_MAGIC = 0x4D5F;
+    static #OST_CLIENT_MAGIC = 0x4F53;
 
-    get nextBID ()  { return this.#header.bidNextB; }
+    static #VER_OST_2013 = 36;
 
-    get nextPage ()  { return this.#header.bidNextP; }
+    get cryptMethod() { return this.#header.bCryptMethod; }
 
-    get modificationCount ()  { return this.#header.dwUnique; }
+    get nextBID() { return this.#header.bidNextB; }
 
-    get fileSize ()  { return this.#header.root.ibFileEof; }
+    get nextPage() { return this.#header.bidNextP; }
 
-    get freeSpace () { return this.#header.root.cbAMapFree; }
+    get modificationCount() { return this.#header.dwUnique; }
 
-    get freePageSpace () { return this.#header.root.cbPMapFree; }
+    get fileSize() { return this.#header.root.ibFileEof; }
 
-    get aMapValid () { return Boolean(this.#header.root.fAMapValid); }
+    get freeSpace() { return this.#header.root.cbAMapFree; }
 
-    get aMapPageCount () {
+    get freePageSpace() { return this.#header.root.cbPMapFree; }
+
+    get aMapValid() { return Boolean(this.#header.root.fAMapValid); }
+
+    get aMapPageCount() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
         return (fileSize - AMapPage.IB_INITIAL) / AMapPage.IB_INTERVAL;
     }
 
-    get pMapPageCount () {
+    get pMapPageCount() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
         return Math.ceil((fileSize - PMapPage.IB_INITIAL) / PMapPage.IB_INTERVAL);
     }
 
-    get fMapPageCount () {
+    get fMapPageCount() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
         return Math.abs(Math.ceil((fileSize - FMapPage.IB_INITIAL) / FMapPage.IB_INTERVAL));
     }
 
-    get fpMapPageCount () {
+    get fpMapPageCount() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
         return Math.abs(Math.ceil((fileSize - FPMapPage.IB_INITIAL) / FPMapPage.IB_INTERVAL));
     }
@@ -81,37 +87,65 @@ export class PSTInternal {
     /**
      * @param {ArrayBufferLike} buffer
      */
-    constructor (buffer) {
+    constructor(buffer) {
         this.#buffer = buffer;
         this.#header = new Header(new DataView(buffer));
+
+        if (this.#header.wVer === 14 || this.#header.wVer === 15) {
+            throw Error("ANSI PST files are not supported.");
+        }
 
         if (this.#header.dwMagic !== PSTInternal.#PST_MAGIC) {
             throw Error("Does not look like a PST file");
         }
 
-        this.#rootNBTPage = new BTPage(this.getPageDataView(this.#header.root.BREFNBT.ib));
+        // if (this.#header.wMagicClient === PSTInternal.#OST_CLIENT_MAGIC) {
+        //     throw Error("Looks like an OST file. Not supported.");
+        // }
 
-        this.#rootBBTPage = new BTPage(this.getPageDataView(this.#header.root.BREFBBT.ib));
+        // if (this.#header.wMagicClient !== PSTInternal.#PST_CLIENT_MAGIC) {
+        //     throw Error("Does not look like a PST file. Not supported.");
+        // }
+
+        const isOST2013 = this.#header.wVer === 36;
+
+        this.#rootNBTPage = isOST2013 ?
+            new BTPage2013(this.getDataView(this.#header.root.BREFNBT.ib, 4096)) :
+            new BTPage(this.getPageDataView(this.#header.root.BREFNBT.ib));
+
+        this.#rootBBTPage = isOST2013 ?
+            new BTPage2013(this.getDataView(this.#header.root.BREFBBT.ib, 4096)) :
+            new BTPage(this.getPageDataView(this.#header.root.BREFBBT.ib));
+    }
+
+    /**
+     * @param {number | bigint} ib
+     * @param {number} size
+     */
+    getDataView(ib, size) {
+        const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
+        return new DataView(this.#buffer, offset, size);
     }
 
     /**
      * @param {number|bigint} ib
      */
-    getPageDataView (ib) {
-        const offset = typeof ib === "bigint" ? parseInt(ib.toString()) : ib;
-        return new DataView(this.#buffer, offset, 512);
+    getPageDataView(ib) {
+        return this.#header.wVer === PSTInternal.#VER_OST_2013 ?
+            this.getDataView(ib, 4096) :
+            this.getDataView(ib, 512);
     }
 
     /**
      * @param {number} n
      */
-    getAMapPage (n) {
+    getAMapPage(n) {
         const ib = AMapPage.IB_INITIAL + AMapPage.IB_INTERVAL * n;
 
         return new AMapPage(this.getPageDataView(ib));
     }
 
-    getAMap () {
+    getAMap() {
         const buffer = new ArrayBuffer(this.aMapPageCount * 496);
 
         for (let i = 0; i < this.aMapPageCount; i++) {
@@ -128,7 +162,7 @@ export class PSTInternal {
     /**
      * @param {number} n
      */
-    getPMapPage (n) {
+    getPMapPage(n) {
         const ib = PMapPage.IB_INITIAL + PMapPage.IB_INTERVAL * n;
 
         return new PMapPage(this.getPageDataView(ib));
@@ -137,7 +171,7 @@ export class PSTInternal {
     /**
      * @returns {DataView}
      */
-    getPMap () {
+    getPMap() {
         const pMapCount = this.pMapPageCount;
 
         const buffer = new ArrayBuffer(pMapCount * 496);
@@ -153,14 +187,14 @@ export class PSTInternal {
         return new DataView(buffer);
     }
 
-    getDListPage () {
+    getDListPage() {
         return new DListPage(this.getPageDataView(DListPage.IB_DLIST));
     }
 
     /**
      * @param {number} n
      */
-    getFMapPage (n) {
+    getFMapPage(n) {
         const ib = FMapPage.IB_INITIAL + FMapPage.IB_INTERVAL * n;
 
         return new FPMapPage(this.getPageDataView(ib));
@@ -169,7 +203,7 @@ export class PSTInternal {
     /**
      * @returns {DataView}
      */
-    getFMap () {
+    getFMap() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
 
         if (fileSize < FMapPage.IB_INITIAL) return this.#header.rgbFM;
@@ -194,7 +228,7 @@ export class PSTInternal {
     /**
      * @param {number} n
      */
-    getFPMapPage (n) {
+    getFPMapPage(n) {
         const ib = FPMapPage.IB_INITIAL + FPMapPage.IB_INTERVAL * n;
 
         return new FPMapPage(this.getPageDataView(ib));
@@ -203,7 +237,7 @@ export class PSTInternal {
     /**
      * @returns {DataView}
      */
-    getFPMap () {
+    getFPMap() {
         const fileSize = parseInt(this.#header.root.ibFileEof.toString());
 
         if (fileSize < FPMapPage.IB_INITIAL) return this.#header.rgbFP;
@@ -228,7 +262,7 @@ export class PSTInternal {
     /**
      * @param {number|bigint} nid
      */
-    getNode (nid) {
+    getNode(nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
         if (!(entry instanceof NodeEntry)) {
             throw Error("Expected NBT Entry");
@@ -236,14 +270,14 @@ export class PSTInternal {
         return entry;
     }
 
-    getAllNodeKeys () {
+    getAllNodeKeys() {
         return this.#rootNBTPage.getAllKeys();
     }
 
     /**
      * @param {number} nidType
      */
-    getAllNodeKeysOfType (nidType) {
+    getAllNodeKeysOfType(nidType) {
         const nodeKeys = this.#rootNBTPage.getAllKeys();
         return nodeKeys.filter(nid => getNIDType(nid) === nidType);
     }
@@ -251,21 +285,21 @@ export class PSTInternal {
     /**
      *
      */
-    getAllNodes () {
+    getAllNodes() {
         return this.getAllNodeKeys().map(nid => this.getNode(nid));
     }
 
     /**
      * @param {number} nidType
      */
-    getAllNodesOfType (nidType) {
+    getAllNodesOfType(nidType) {
         return this.getAllNodeKeysOfType(nidType).map(nid => this.getNode(nid));
     }
 
     /**
      * @param {bigint} bid
      */
-    getBlock (bid) {
+    getBlock(bid) {
         const entry = this.#rootBBTPage.findEntry(bid);
 
         if (entry instanceof BlockEntry) {
@@ -301,7 +335,7 @@ export class PSTInternal {
      * @param {DataView} [target]
      * @returns {{data: DataView, blockOffsets: number[] }}
      */
-    getBlockData (bid, target) {
+    getBlockData(bid, target) {
         const block = this.getBlock(bid);
 
         if (!block) {
@@ -340,7 +374,7 @@ export class PSTInternal {
                 dest.set(source);
             }
 
-            return {data: block.data, blockOffsets: [0] };
+            return { data: block.data, blockOffsets: [0] };
         }
 
         if (block instanceof XBlock) {
@@ -384,7 +418,7 @@ export class PSTInternal {
     /**
      * @param {number | bigint} nid
      */
-    getNodeData (nid) {
+    getNodeData(nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
 
         if (!entry) {
@@ -402,7 +436,7 @@ export class PSTInternal {
      * @param {number | bigint} nid
      * @returns {PSTContext}
      */
-    getPSTContext (nid) {
+    getPSTContext(nid) {
         const entry = this.#rootNBTPage.findEntry(nid);
 
         const subNodeAccessor = this.#getSubNodeAccessor(
@@ -418,7 +452,7 @@ export class PSTInternal {
     /**
      * @param {bigint} bidSub
      */
-    #getSubNodeAccessor (bidSub) {
+    #getSubNodeAccessor(bidSub) {
         const getSubEntry = (/** @type {number} */internalNid) => {
             if (bidSub === 0n) {
                 return null;
@@ -501,7 +535,7 @@ export class PSTInternal {
     /**
      * @param {number} tag
      * */
-    getNamedProperty (tag) {
+    getNamedProperty(tag) {
         if (!this.#namedPropertyMap) {
             const nid = NID_NAME_TO_ID_MAP;
             const data = this.getNodeData(nid);
@@ -516,7 +550,7 @@ export class PSTInternal {
     /**
      * @param {number} nid
      */
-    getPropertyContext (nid) {
+    getPropertyContext(nid) {
         const data = this.getNodeData(nid);
         const pstContext = this.getPSTContext(nid);
 
@@ -530,7 +564,7 @@ export class PSTInternal {
     /**
      * @param {number | bigint} nid
      */
-    getTableContext (nid) {
+    getTableContext(nid) {
         const data = this.getNodeData(nid);
         const pstContext = this.getPSTContext(nid);
 
